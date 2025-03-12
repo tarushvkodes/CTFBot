@@ -182,6 +182,7 @@ async function handleSendMessage() {
 
     try {
         setProcessingState(true);
+        console.log('Sending message:', messageText); // Debug log
 
         // Format message based on selected assistance type
         const formattedMessage = formatQueryForAssistanceType(
@@ -195,6 +196,7 @@ async function handleSendMessage() {
 
         // Get AI response
         const response = await sendToGemini(formattedMessage);
+        console.log('Received response:', response); // Debug log
         
         // Add AI response to chat
         addMessageToChat('assistant', response);
@@ -245,6 +247,7 @@ async function sendToGemini(prompt) {
         // Create message container ahead of time
         const messageContainer = addEmptyMessage('assistant');
 
+        console.log('Sending request to API:', fullContext); // Debug log
         const response = await fetch(`${streamingUrl}?key=${state.apiKey}`, {
             method: 'POST',
             headers: {
