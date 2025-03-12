@@ -126,6 +126,11 @@ function formatQueryForAssistanceType(userMessage, assistanceType) {
 // Send message to Gemini API
 async function sendToGemini(prompt) {
     try {
+        // Validate API key format before making request
+        if (!state.apiKey || !/^[A-Za-z0-9-_]{39}$/.test(state.apiKey)) {
+            throw new Error('Invalid API key format');
+        }
+
         // Construct the full context with chat history and system prompt
         const fullContext = constructPromptWithHistory(prompt);
         
@@ -153,9 +158,11 @@ async function sendToGemini(prompt) {
         
         const data = await response.json();
         
-        // Detect errors and throw if present
+        // Handle specific API errors
         if (data.error) {
-            throw new Error(data.error.message || "API Error");
+            const errorMessage = data.error.message || "API Error";
+            updateApiStatus(false, errorMessage);
+            throw new Error(errorMessage);
         }
         
         // Check supported format is present
@@ -163,13 +170,14 @@ async function sendToGemini(prompt) {
             data.candidates[0].content &&
             data.candidates[0].content.parts &&
             data.candidates[0].content.parts.length > 0) {
+            updateApiStatus(true);
             return data.candidates[0].content.parts[0].text;
         } else {
             throw new Error("Invalid response format");
         }
     } catch (error) {
         console.error('API Error:', error);
-        updateApiStatus(false);
+        updateApiStatus(false, error.message);
         throw error;
     }
 }
@@ -255,18 +263,28 @@ function setProcessingState(isProcessing) {
 // Check API status
 async function checkApiStatus() {
     try {
+        // Validate API key format first
+        if (!state.apiKey || !/^[A-Za-z0-9-_]{39}$/.test(state.apiKey)) {
+            updateApiStatus(false, 'Invalid API key format');
+            elements.apiKeyNotice.style.display = 'flex';
+            return;
+        }
+
         // Simple test request to see if the API is accessible
-        const testURL = `https://generativelanguage.googleapis.com/v1beta/models?key=${state.apiKey}`;
+        const testURL = `${API_BASE_URL}/models?key=${state.apiKey}`;
         const response = await fetch(testURL);
         const data = await response.json();
         
         if (data.error) {
             updateApiStatus(false, data.error.message);
+            elements.apiKeyNotice.style.display = 'flex';
         } else {
             updateApiStatus(true);
+            elements.apiKeyNotice.style.display = 'none';
         }
     } catch (error) {
         updateApiStatus(false, error.message);
+        elements.apiKeyNotice.style.display = 'flex';
     }
 }
 
@@ -277,12 +295,13 @@ function updateApiStatus(isConnected, errorMessage = '') {
     
     if (isConnected) {
         elements.apiStatusText.textContent = 'API Status: Connected';
-        // Hide API notice when successfully connected
-        if (elements.apiKeyNotice) {
-            elements.apiKeyNotice.style.display = 'none';
-        }
+        elements.apiKeyNotice.style.display = 'none';
     } else {
-        elements.apiStatusText.textContent = `API Status: Error${errorMessage ? ' - ' + errorMessage : ''}`;
+        const displayError = errorMessage === 'Invalid API key format' ? 
+            'Invalid API key format - Please check your API key' : 
+            `API Status: Error - ${errorMessage}`;
+        elements.apiStatusText.textContent = displayError;
+        elements.apiKeyNotice.style.display = 'flex';
     }
 }
 
