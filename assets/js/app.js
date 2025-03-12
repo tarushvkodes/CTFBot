@@ -169,6 +169,11 @@ async function handleSendMessage() {
     const messageText = elements.messageInput.value.trim();
     if (!messageText || state.isProcessing) return;
 
+    // Blur input on mobile to hide keyboard
+    if (window.innerWidth <= 768) {
+        elements.messageInput.blur();
+    }
+
     // Check for API key
     if (!state.apiKey) {
         elements.apiKeyNotice.style.display = 'flex';
@@ -205,14 +210,23 @@ async function handleSendMessage() {
         elements.messageInput.value = '';
         adjustTextareaHeight();
 
-        // Scroll to bottom
-        elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+        // Scroll to bottom with smooth animation
+        requestAnimationFrame(() => {
+            elements.chatMessages.scrollTo({
+                top: elements.chatMessages.scrollHeight,
+                behavior: 'smooth'
+            });
+        });
 
     } catch (error) {
         console.error('Error sending message:', error);
         addMessageToChat('system', `Error: ${error.message}`);
     } finally {
         setProcessingState(false);
+        // Re-enable input after processing
+        if (window.innerWidth <= 768) {
+            elements.messageInput.focus();
+        }
     }
 }
 
@@ -440,11 +454,17 @@ async function checkApiStatus() {
 async function checkApiKeyStatus() {
     try {
         if (!state.apiKey) {
-            throw new Error('API key is required');
+            updateApiStatus(false, 'API key required');
+            elements.apiKeyNotice.style.display = 'flex';
+            return;
         }
 
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
         const testURL = `${API_BASE_URL}/models/${MODEL_NAME}?key=${state.apiKey}`;
-        const response = await fetch(testURL);
+        const response = await fetch(testURL, { signal: controller.signal });
+        clearTimeout(timeoutId);
         
         if (!response.ok) {
             const errorData = await response.json();
@@ -456,7 +476,9 @@ async function checkApiKeyStatus() {
         
     } catch (error) {
         console.error('API Status Check Error:', error);
-        updateApiStatus(false, error.message);
+        const errorMessage = error.name === 'AbortError' ? 
+            'Connection timeout - please try again' : error.message;
+        updateApiStatus(false, errorMessage);
         elements.apiKeyNotice.style.display = 'flex';
     }
 }
@@ -510,43 +532,59 @@ async function saveSettings() {
 
 // Toggle between light and dark theme
 function toggleTheme() {
-    // If current theme is system or light, switch to dark, otherwise switch to light
-    const newTheme = (state.theme === 'system' || state.theme === 'light') ? 'dark' : 'light';
+    // Get the current theme
+    const currentTheme = state.theme;
+    
+    // Determine the new theme
+    let newTheme;
+    if (currentTheme === 'system') {
+        newTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'light' : 'dark';
+    } else {
+        newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    }
+    
+    // Update state and localStorage
     state.theme = newTheme;
     localStorage.setItem('ctfbot_theme', newTheme);
     
-    // Update active theme button in settings
+    // Apply the theme
+    applyTheme();
+    
+    // Update theme buttons in settings
     elements.themeButtons.forEach(btn => {
         btn.classList.toggle('active', btn.getAttribute('data-theme') === newTheme);
     });
-    
-    applyTheme();
 }
 
-// Apply current theme - optimized version
+// Apply current theme with improved handling
 function applyTheme() {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+    const theme = state.theme;
+    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     
-    function updateTheme() {
-        if (state.theme === 'system') {
-            document.documentElement.setAttribute('data-theme', prefersDark.matches ? 'dark' : 'light');
+    // Determine the actual theme to apply
+    const effectiveTheme = theme === 'system' ? 
+        (systemPrefersDark ? 'dark' : 'light') : 
+        theme;
+    
+    // Apply theme to document
+    document.documentElement.setAttribute('data-theme', effectiveTheme);
+    
+    // Update theme icons
+    const moonIcon = document.querySelector('.moon-icon');
+    const sunIcon = document.querySelector('.sun-icon');
+    
+    if (moonIcon && sunIcon) {
+        if (effectiveTheme === 'dark') {
+            moonIcon.style.display = 'none';
+            sunIcon.style.display = 'block';
         } else {
-            document.documentElement.setAttribute('data-theme', state.theme);
+            moonIcon.style.display = 'block';
+            sunIcon.style.display = 'none';
         }
     }
     
-    // Update theme immediately
-    updateTheme();
-    
-    // Listen for system theme changes
-    prefersDark.addEventListener('change', updateTheme);
-    
-    // Update theme buttons
-    if (elements.themeButtons) {
-        elements.themeButtons.forEach(btn => {
-            btn.classList.toggle('active', btn.getAttribute('data-theme') === state.theme);
-        });
-    }
+    // Store the effective theme
+    document.documentElement.style.setProperty('--effective-theme', effectiveTheme);
 }
 
 // Save chat history to localStorage
