@@ -18,6 +18,160 @@ Focus on these areas:
 
 Whenever you're presented with challenge text or files, analyze and suggest possible approaches. For code, explain what it does and potential vulnerabilities.`;
 
+// Add model cache
+const MODEL_CACHE_KEY = 'ctfbot_model_cache';
+const MODEL_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
+// State management
+const state = {
+    apiKey: localStorage.getItem('ctfbot_api_key') || DEFAULT_API_KEY,
+    theme: localStorage.getItem('ctfbot_theme') || 'system',
+    saveHistory: localStorage.getItem('ctfbot_save_history') !== 'false',
+    selectedModel: localStorage.getItem('ctfbot_selected_model') || 'gemini-pro',
+    availableModels: [],
+    modelCacheTimestamp: null,
+    isProcessing: false,
+    chatHistory: [],
+    uploadedFiles: [],
+    currentContext: ''
+};
+
+// Initialize the application
+async function init() {
+    loadChatHistory();
+    setupEventListeners();
+    applyTheme();
+    
+    if (state.apiKey) {
+        elements.apiKeyInput.value = state.apiKey;
+        await loadModels(); // Load models with cache support
+        await checkApiKeyStatus();
+    }
+    
+    adjustTextareaHeight();
+}
+
+// Load models with cache support
+async function loadModels() {
+    try {
+        // Check cache first
+        const cache = loadModelCache();
+        if (cache) {
+            state.availableModels = cache.models;
+            state.modelCacheTimestamp = cache.timestamp;
+            updateModelSelect();
+            
+            // If cache is still fresh, return early
+            if (Date.now() - cache.timestamp < MODEL_CACHE_DURATION) {
+                return;
+            }
+        }
+        
+        // Fetch fresh models
+        await fetchAvailableModels();
+        
+    } catch (error) {
+        console.error('Error loading models:', error);
+        // If fetch fails and we have cached models, keep using them
+        if (state.availableModels.length === 0 && cache) {
+            state.availableModels = cache.models;
+            updateModelSelect();
+        }
+    }
+}
+
+// Load model cache
+function loadModelCache() {
+    try {
+        const cache = localStorage.getItem(MODEL_CACHE_KEY);
+        if (cache) {
+            return JSON.parse(cache);
+        }
+    } catch (error) {
+        console.error('Error loading model cache:', error);
+    }
+    return null;
+}
+
+// Save model cache
+function saveModelCache() {
+    try {
+        const cache = {
+            models: state.availableModels,
+            timestamp: Date.now()
+        };
+        localStorage.setItem(MODEL_CACHE_KEY, JSON.stringify(cache));
+    } catch (error) {
+        console.error('Error saving model cache:', error);
+    }
+}
+
+// Fetch available Gemini models
+async function fetchAvailableModels() {
+    try {
+        elements.modelSelect.disabled = true;
+        
+        const response = await fetch(`${API_BASE_URL}/models?key=${state.apiKey}`);
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error.message || "Failed to fetch models");
+        }
+        
+        // Filter for Gemini models and sort by name
+        state.availableModels = data.models
+            .filter(model => model.name.includes('gemini'))
+            .map(model => ({
+                id: model.name.split('/').pop(),
+                name: model.displayName || model.name,
+                description: model.description || ''
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+        
+        // Save to cache
+        saveModelCache();
+        
+        // Update model select dropdown
+        updateModelSelect();
+        return true;
+    } catch (error) {
+        console.error('Error fetching models:', error);
+        elements.modelSelect.innerHTML = '<option value="">Failed to load models</option>';
+        return false;
+    } finally {
+        elements.modelSelect.disabled = false;
+    }
+}
+
+// Select the model used for API requests
+async function updateApiUrl() {
+    const model = state.selectedModel;
+    state.currentApiUrl = `${API_BASE_URL}/models/${model}:generateContent`;
+}
+
+// Update model select dropdown
+function updateModelSelect() {
+    const modelSelects = document.querySelectorAll('#model-select');
+    modelSelects.forEach(select => {
+        select.innerHTML = '';
+        
+        state.availableModels.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model.id;
+            option.textContent = model.name;
+            option.title = model.description;
+            option.selected = model.id === state.selectedModel;
+            select.appendChild(option);
+        });
+        
+        // Enable/disable based on whether we have models
+        select.disabled = state.availableModels.length === 0;
+    });
+    
+    // Update the API URL for the selected model
+    updateApiUrl();
+}
+
 // DOM Elements
 const elements = {
     // Chat UI elements
@@ -56,22 +210,6 @@ const elements = {
     closeHistoryBtn: document.getElementById('close-history-btn'),
     chatHistoryList: document.getElementById('chat-history-list'),
     sidebarOverlay: document.createElement('div'),
-    
-    // Model picker elements
-    modelSelect: document.getElementById('model-select')
-};
-
-// State management
-const state = {
-    apiKey: localStorage.getItem('ctfbot_api_key') || DEFAULT_API_KEY,
-    theme: localStorage.getItem('ctfbot_theme') || 'system',
-    saveHistory: localStorage.getItem('ctfbot_save_history') !== 'false',
-    selectedModel: localStorage.getItem('ctfbot_selected_model') || 'gemini-pro',
-    availableModels: [],
-    isProcessing: false,
-    chatHistory: [],
-    uploadedFiles: [],
-    currentContext: ''
 };
 
 // Initialize the application
@@ -79,23 +217,14 @@ async function init() {
     loadChatHistory();
     setupEventListeners();
     applyTheme();
-    await checkApiKeyStatus();
-    adjustTextareaHeight();
     
-    // Auto-fill API key in settings if available
     if (state.apiKey) {
         elements.apiKeyInput.value = state.apiKey;
-        await fetchAvailableModels(); // Fetch models if API key is set
+        await loadModels(); // Load models with cache support
+        await checkApiKeyStatus();
     }
     
-    // Set active theme button
-    document.querySelector(`.theme-btn[data-theme="${state.theme}"]`)?.classList.add('active');
-    
-    // Set history toggle
-    elements.historyToggle.checked = state.saveHistory;
-    
-    // Initialize chat history list
-    updateChatHistoryList();
+    adjustTextareaHeight();
 }
 
 // Check if API key is set and show/hide notice
@@ -194,6 +323,26 @@ function setupEventListeners() {
             closeSettingsModal();
         }
     });
+}
+
+// Listen for system theme changes if using system theme
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    if (state.theme === 'system') {
+        applyTheme();
+    }
+});
+
+// Initialize the application when DOM is loaded
+document.addEventListener('DOMContentLoaded', init);
+
+// Toggle chat history sidebar
+function toggleChatHistory() {
+    const isVisible = elements.chatHistorySidebar.classList.contains('show');
+    elements.chatHistorySidebar.classList.toggle('show');
+    elements.sidebarOverlay.classList.toggle('show');
+    
+    // Update aria-expanded attribute for accessibility
+    elements.historyMenuBtn.setAttribute('aria-expanded', !isVisible);
 }
 
 // Start a new chat
@@ -440,16 +589,12 @@ function addMessageToChat(type, content) {
         saveChatHistory();
     }
     
-    // Update the chat history list if saving history
-    if (elements.saveHistory) {
-        updateChatHistoryList();
-    }
+    // Updated UI
+    updateChatHistoryList();
 }
 
 // Process message content for formatting
 function processMessageContent(content) {
-    if (!content) return '';
-    
     // Escape HTML to prevent XSS
     let processed = escapeHtml(content);
     
@@ -552,78 +697,6 @@ function setProcessingState(isProcessing) {
     
     // Update API status indicator
     elements.apiStatusIndicator.classList.toggle('connected', isProcessing);
-}
-
-// Fetch available Gemini models
-async function fetchAvailableModels() {
-    try {
-        elements.modelSelect.disabled = true;
-        elements.modelSelect.innerHTML = '<option value="">Loading available models...</option>';
-        
-        const response = await fetch(`${API_BASE_URL}/models?key=${state.apiKey}`);
-        const data = await response.json();
-        
-        if (data.error) {
-            throw new Error(data.error.message || "Failed to fetch models");
-        }
-        
-        // Filter for Gemini models and sort by name
-        state.availableModels = data.models
-            .filter(model => model.name.includes('gemini'))
-            .map(model => ({
-                id: model.name.split('/').pop(),
-                name: model.displayName || model.name,
-                description: model.description || ''
-            }))
-            .sort((a, b) => a.name.localeCompare(b.name));
-        
-        // Update model select dropdown
-        updateModelSelect();
-        return true;
-    } catch (error) {
-        console.error('Error fetching models:', error);
-        elements.modelSelect.innerHTML = '<option value="">Failed to load models</option>';
-        return false;
-    } finally {
-        elements.modelSelect.disabled = false;
-    }
-}
-
-// Select the model used for API requests
-async function updateApiUrl() {
-    const model = state.selectedModel;
-    state.currentApiUrl = `${API_BASE_URL}/models/${model}:generateContent`;
-}
-
-// Update model select dropdown
-function updateModelSelect() {
-    if (!elements.modelSelect) return;
-    
-    elements.modelSelect.innerHTML = '';
-    
-    state.availableModels.forEach(model => {
-        const option = document.createElement('option');
-        option.value = model.id;
-        option.textContent = model.name;
-        option.title = model.description;
-        option.selected = model.id === state.selectedModel;
-        elements.modelSelect.appendChild(option);
-    });
-    
-    // Enable/disable based on whether we have models
-    elements.modelSelect.disabled = state.availableModels.length === 0;
-    
-    // Update the API URL for the selected model
-    updateApiUrl();
-}
-
-// Add model select event listener
-if (elements.modelSelect) {
-    elements.modelSelect.addEventListener('change', (e) => {
-        state.selectedModel = e.target.value;
-        localStorage.setItem('ctfbot_selected_model', state.selectedModel);
-        updateApiUrl();
-    });
 }
 
 // Check API status
@@ -757,27 +830,805 @@ function clearChatHistory() {
     localStorage.removeItem('ctfbot_chat_history');
 }
 
-// Listen for system theme changes if using system theme
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-    if (state.theme === 'system') {
-        applyTheme();
+// Add new function to update chat history list
+function updateChatHistoryList() {
+    // Clear existing history list
+    elements.chatHistoryList.innerHTML = '';
+    
+    if (state.chatHistory.length === 0) {
+        const emptyHistory = document.createElement('div');
+        emptyHistory.classList.add('empty-history');
+        emptyHistory.textContent = 'No chat history yet';
+        elements.chatHistoryList.appendChild(emptyHistory);
+        return;
     }
-});
+    
+    // Group messages by conversation
+    let conversations = [];
+    let currentConversation = [];
+    
+    state.chatHistory.forEach(msg => {
+        currentConversation.push(msg);
+        if (msg.type === 'system' && msg.content.includes('Hello! I\'m CTFBot')) {
+            conversations.push(currentConversation);
+            currentConversation = [];
+        }
+    });
+    
+    // Add remaining messages as current conversation
+    if (currentConversation.length > 0) {
+        conversations.push(currentConversation);
+    }
+    
+    // Create chat history items
+    conversations.forEach((conversation, index) => {
+        const chatItem = document.createElement('div');
+        chatItem.classList.add('chat-history-item');
+        
+        // Find first user message for title
+        const firstUserMsg = conversation.find(msg => msg.type === 'user');
+        const title = firstUserMsg ? 
+            (firstUserMsg.content.length > 30 ? 
+                firstUserMsg.content.substring(0, 30) + '...' : 
+                firstUserMsg.content) :
+            'New Conversation';
+        
+        const date = new Date().toLocaleDateString();
+        
+        chatItem.innerHTML = `
+            <div class="chat-title">${title}</div>
+            <div class="chat-date">${date}</div>
+            <button class="delete-chat-btn" aria-label="Delete conversation">×</button>
+        `;
+        
+        // Add click handler to load conversation
+        chatItem.addEventListener('click', (e) => {
+            if (e.target.classList.contains('delete-chat-btn')) {
+                e.stopPropagation();
+                deleteConversation(index);
+            } else {
+                loadConversation(conversation);
+            }
+        });
+        
+        elements.chatHistoryList.appendChild(chatItem);
+    });
+}
 
-// Initialize the application when DOM is loaded
-document.addEventListener('DOMContentLoaded', init);
+/**
+ * Load a conversation
+ * @param {object} conversation Previous conversation
+ */
+function loadConversation(conversation) {
+    // Clear current chat
+    while (elements.chatMessages.firstChild) {
+        elements.chatMessages.removeChild(elements.chatMessages.firstChild);
+    }
+    
+    // Hide welcome screen
+    elements.welcomeScreen.style.display = 'none';
+    
+    // Load conversation messages
+    conversation.forEach(msg => {
+        addMessageToChat(msg.type, msg.content);
+    });
+    
+    // Close sidebar on mobile
+    if (window.innerWidth <= 768) {
+        toggleChatHistory();
+    }
+}
 
-// Toggle chat history sidebar
+// Delete conversation
+function deleteConversation(index) {
+    const conversations = [];
+    let currentConversation = [];
+    
+    state.chatHistory.forEach(msg => {
+        currentConversation.push(msg);
+        if (msg.type === 'system' && msg.content.includes('Hello! I\'m CTFBot')) {
+            conversations.push(currentConversation);
+            currentConversation = [];
+        }
+    });
+    
+    if (currentConversation.length > 0) {
+        conversations.push(currentConversation);
+    }
+    
+    // Remove the conversation
+    conversations.splice(index, 1);
+    
+    // Flatten conversations back into chat history
+    state.chatHistory = conversations.flat();
+    
+    // Save updated history
+    if (state.saveHistory) {
+        saveChatHistory();
+    }
+    
+    // Updated UI
+    updateChatHistoryList();
+}
+
+// Add message to chat UI
+function addMessageToChat(type, content) {
+    // Hide welcome screen when messages are added
+    if (elements.welcomeScreen) {
+        elements.welcomeScreen.style.display = 'none';
+    }
+    
+    // Create message element
+    const messageDiv = document.createElement('div');
+    messageDiv.classList.add('message', type);
+    
+    const contentDiv = document.createElement('div');
+    contentDiv.classList.add('message-content');
+    
+    // Process content for code blocks, markdown, etc.
+    const formattedContent = processMessageContent(content);
+    contentDiv.innerHTML = formattedContent;
+    
+    // Add copy button to code blocks
+    const codeBlocks = contentDiv.querySelectorAll('pre');
+    codeBlocks.forEach(block => {
+        const copyBtn = document.createElement('button');
+        copyBtn.classList.add('copy-btn');
+        copyBtn.textContent = 'Copy';
+        copyBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(block.textContent);
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => {
+                copyBtn.textContent = 'Copy';
+            }, 2000);
+        });
+        block.parentNode.appendChild(copyBtn);
+    });
+    
+    messageDiv.appendChild(contentDiv);
+    elements.chatMessages.appendChild(messageDiv);
+    
+    // Scroll to bottom
+    elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+    
+    // Save message to history
+    if (state.saveHistory) {
+        state.chatHistory.push({ type, content });
+        saveChatHistory();
+    }
+    
+    // Updated UI
+    updateChatHistoryList();
+}
+
+// Process message content for formatting
+function processMessageContent(content) {
+    // Escape HTML to prevent XSS
+    let processed = escapeHtml(content);
+    
+    // Process code blocks (```code```)
+    processed = processed.replace(/```([\s\S]*?)```/g, (match, code) => {
+        return `<div class="code-block"><pre>${code}</pre></div>`;
+    });
+    
+    // Process inline code (`code`)
+    processed = processed.replace(/`([^`]+)`/g, '<code>$1</code>');
+    
+    // Process bold (**text**)
+    processed = processed.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    
+    // Process italic (*text*)
+    processed = processed.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    
+    // Convert URLs to clickable links
+    processed = processed.replace(
+        /https?:\/\/[^\s)]+/g, 
+        '<a href="$&" target="_blank" rel="noopener noreferrer">$&</a>'
+    );
+    
+    // Convert line breaks to <br>
+    processed = processed.replace(/\n/g, '<br>');
+    
+    return processed;
+}
+
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Handle file upload
+function handleFileUpload(event) {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    
+    // Process each file
+    Array.from(files).forEach(file => {
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+            const fileContent = e.target.result;
+            
+            // Add file to state
+            state.uploadedFiles.push({
+                name: file.name,
+                type: file.type,
+                content: fileContent
+            });
+            
+            // Add file attachment message
+            const fileMessage = `Uploaded file: ${file.name} (${formatFileSize(file.size)})`;
+            addMessageToChat('user', fileMessage);
+        };
+        
+        if (file.type.startsWith('text') || 
+            file.type === 'application/json' ||
+            file.name.match(/\.(txt|js|py|html|css|json|md|cpp|c|h|java|rb|php|sh|bat|ps1|sql|yaml|yml|xml)$/i)) {
+            // Read as text if it's a text file
+            reader.readAsText(file);
+        } else {
+            // Read as data URL for binary files
+            reader.readAsDataURL(file);
+        }
+    });
+    
+    // Reset file input
+    event.target.value = null;
+}
+
+// Format file size
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' bytes';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+// Set the processing state (loading indicator, button state)
+function setProcessingState(isProcessing) {
+    state.isProcessing = isProcessing;
+    elements.sendBtn.disabled = isProcessing;
+    
+    // Hide the welcome screen when starting to process
+    if (isProcessing && elements.welcomeScreen) {
+        elements.welcomeScreen.style.display = 'none';
+    }
+    
+    // Show/hide the typing indicator inside the chat
+    elements.typingIndicator.style.display = isProcessing ? 'block' : 'none';
+    
+    // Scroll to make sure typing indicator is visible
+    if (isProcessing) {
+        elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+    }
+    
+    // Update API status indicator
+    elements.apiStatusIndicator.classList.toggle('connected', isProcessing);
+}
+
+// Fetch available Gemini models
+async function fetchAvailableModels() {
+    try {
+        elements.modelSelect.disabled = true;
+        
+        const response = await fetch(`${API_BASE_URL}/models?key=${state.apiKey}`);
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error.message || "Failed to fetch models");
+        }
+        
+        // Filter for Gemini models and sort by name
+        state.availableModels = data.models
+            .filter(model => model.name.includes('gemini'))
+            .map(model => ({
+                id: model.name.split('/').pop(),
+                name: model.displayName || model.name,
+                description: model.description || ''
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+        
+        // Update model select dropdown
+        updateModelSelect();
+        return true;
+    } catch (error) {
+        console.error('Error fetching models:', error);
+        elements.modelSelect.innerHTML = '<option value="">Failed to load models</option>';
+        return false;
+    } finally {
+        elements.modelSelect.disabled = false;
+    }
+}
+
+// Select the model used for API requests
+async function updateApiUrl() {
+    const model = state.selectedModel;
+    state.currentApiUrl = `${API_BASE_URL}/models/${model}:generateContent`;
+    console.log(`Current API URL: ${state.currentApiUrl}`)
+}
+
+// Update model select dropdown
+function updateModelSelect() {
+    const modelSelects = document.querySelectorAll('#model-select');
+    modelSelects.forEach(select => {
+        select.innerHTML = '';
+        
+        state.availableModels.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model.id;
+            option.textContent = model.name;
+            option.title = model.description;
+            option.selected = model.id === state.selectedModel;
+            select.appendChild(option);
+        });
+        
+        // Enable/disable based on whether we have models
+        select.disabled = state.availableModels.length === 0;
+        
+        // Update the API URL for the selected model
+        updateApiUrl();
+    });
+}
+
+// Add model select event listener
+if (elements.modelSelect) {
+    elements.modelSelect.addEventListener('change', (e) => {
+        state.selectedModel = e.target.value;
+        localStorage.setItem('ctfbot_selected_model', state.selectedModel);
+        updateApiUrl();
+    });
+}
+
+// Monitoring check for model
+
+// Check API status
+async function checkApiStatus() {
+    try {
+        // Simple test request to see if the API is accessible
+        const testURL = `https://generativelanguage.googleapis.com/v1beta/models?key=${state.apiKey}`;
+        const response = await fetch(testURL);
+        const data = await response.json();
+        
+        if (data.error) {
+            updateApiStatus(false, data.error.message);
+        } else {
+            updateApiStatus(true);
+        }
+    } catch (error) {
+        updateApiStatus(false, error.message);
+    }
+}
+
+// Update API status indicator
+function updateApiStatus(isConnected, errorMessage = '') {
+    elements.apiStatusIndicator.classList.toggle('connected', isConnected);
+    elements.apiStatusIndicator.classList.toggle('error', !isConnected);
+    
+    if (isConnected) {
+        elements.apiStatusText.textContent = 'API Status: Connected';
+    } else {
+        elements.apiStatusText.textContent = `API Status: Error${errorMessage ? ' - ' + errorMessage : ''}`;
+    }
+}
+
+// Save settings
+async function saveSettings() {
+    const newApiKey = elements.apiKeyInput.value.trim();
+    if (newApiKey && newApiKey !== state.apiKey) {
+        state.apiKey = newApiKey;
+        localStorage.setItem('ctfbot_api_key', newApiKey);
+        await fetchAvailableModels(); // Fetch models when API key changes
+        checkApiKeyStatus();
+    }
+    
+    // Save model selection
+    const selectedModel = elements.modelSelect.value;
+    if (selectedModel && selectedModel !== state.selectedModel) {
+        state.selectedModel = selectedModel;
+        localStorage.setItem('ctfbot_selected_model', selectedModel);
+        updateApiUrl();
+    }
+    
+    // Save history preference
+    state.saveHistory = elements.historyToggle.checked;
+    localStorage.setItem('ctfbot_save_history', state.saveHistory);
+    
+    if (!state.saveHistory) {
+        clearChatHistory();
+    }
+}
+
+// Toggle between light and dark theme
+function toggleTheme() {
+    // If current theme is system or light, switch to dark, otherwise switch to light
+    const newTheme = (state.theme === 'system' || state.theme === 'light') ? 'dark' : 'light';
+    state.theme = newTheme;
+    localStorage.setItem('ctfbot_theme', newTheme);
+    
+    // Update active theme button in settings
+    elements.themeButtons.forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-theme') === newTheme);
+    });
+    
+    applyTheme();
+}
+
+// Apply current theme
+function applyTheme() {
+    // Get system preference if theme is set to 'system'
+    if (state.theme === 'system') {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+    } else {
+        document.documentElement.setAttribute('data-theme', state.theme);
+    }
+}
+
+// Save chat history to localStorage
+function saveChatHistory() {
+    if (state.saveHistory) {
+        try {
+            localStorage.setItem('ctfbot_chat_history', JSON.stringify(state.chatHistory));
+        } catch (e) {
+            console.error('Error saving chat history:', e);
+        }
+    }
+}
+
+// Load chat history from localStorage
+function loadChatHistory() {
+    if (state.saveHistory) {
+        try {
+            const savedHistory = localStorage.getItem('ctfbot_chat_history');
+            if (savedHistory) {
+                state.chatHistory = JSON.parse(savedHistory);
+                
+                // Display loaded messages in the chat
+                state.chatHistory.forEach(msg => {
+                    addMessageToChat(msg.type, msg.content);
+                });
+            }
+        } catch (e) {
+            console.error('Error loading chat history:', e);
+        }
+    }
+}
+
+// Clear chat history
+function clearChatHistory() {
+    state.chatHistory = [];
+    localStorage.removeItem('ctfbot_chat_history');
+}
+
+/**
+ * Toggle chat history sidebar
+ */
 function toggleChatHistory() {
     const isVisible = elements.chatHistorySidebar.classList.contains('show');
     elements.chatHistorySidebar.classList.toggle('show');
     elements.sidebarOverlay.classList.toggle('show');
-    
-    // Update aria-expanded attribute for accessibility
-    elements.historyMenuBtn.setAttribute('aria-expanded', !isVisible);
 }
 
-// New chat button
+// Add new function to update chat history list
+function updateChatHistoryList() {
+    // Clear existing history list
+    elements.chatHistoryList.innerHTML = '';
+    
+    if (state.chatHistory.length === 0) {
+        const emptyHistory = document.createElement('div');
+        emptyHistory.classList.add('empty-history');
+        emptyHistory.textContent = 'No chat history yet';
+        elements.chatHistoryList.appendChild(emptyHistory);
+        return;
+    }
+    
+    // Group messages by conversation
+    let conversations = [];
+    let currentConversation = [];
+    
+    state.chatHistory.forEach(msg => {
+        currentConversation.push(msg);
+        if (msg.type === 'system' && msg.content.includes('Hello! I\'m CTFBot')) {
+            conversations.push(currentConversation);
+            currentConversation = [];
+        }
+    });
+    
+    // Add remaining messages as current conversation
+    if (currentConversation.length > 0) {
+        conversations.push(currentConversation);
+    }
+    
+    // Create chat history items
+    conversations.forEach((conversation, index) => {
+        const chatItem = document.createElement('div');
+        chatItem.classList.add('chat-history-item');
+        
+        // Find first user message for title
+        const firstUserMsg = conversation.find(msg => msg.type === 'user');
+        const title = firstUserMsg ? 
+            (firstUserMsg.content.length > 30 ? 
+                firstUserMsg.content.substring(0, 30) + '...' : 
+                firstUserMsg.content) :
+            'New Conversation';
+        
+        const date = new Date().toLocaleDateString();
+        
+        chatItem.innerHTML = `
+            <div class="chat-title">${title}</div>
+            <div class="chat-date">${date}</div>
+            <button class="delete-chat-btn" aria-label="Delete conversation">×</button>
+        `;
+        
+        // Add click handler to load conversation
+        chatItem.addEventListener('click', (e) => {
+            if (e.target.classList.contains('delete-chat-btn')) {
+                e.stopPropagation();
+                deleteConversation(index);
+            } else {
+                loadConversation(conversation);
+            }
+        });
+        
+        elements.chatHistoryList.appendChild(chatItem);
+    });
+}
+
+/**
+ * Load a conversation
+ * @param {object} conversation Previous conversation
+ */
+function loadConversation(conversation) {
+    // Clear current chat
+    while (elements.chatMessages.firstChild) {
+        elements.chatMessages.removeChild(elements.chatMessages.firstChild);
+    }
+    
+    // Hide welcome screen
+    elements.welcomeScreen.style.display = 'none';
+    
+    // Load conversation messages
+    conversation.forEach(msg => {
+        addMessageToChat(msg.type, msg.content);
+    });
+    
+    // Close sidebar on mobile
+    if (window.innerWidth <= 768) {
+        toggleChatHistory();
+    }
+}
+
+// Delete conversation
+function deleteConversation(index) {
+    const conversations = [];
+    let currentConversation = [];
+    
+    state.chatHistory.forEach(msg => {
+        currentConversation.push(msg);
+        if (msg.type === 'system' && msg.content.includes('Hello! I\'m CTFBot')) {
+            conversations.push(currentConversation);
+            currentConversation = [];
+        }
+    });
+    
+    if (currentConversation.length > 0) {
+        conversations.push(currentConversation);
+    }
+    
+    // Remove the conversation
+    conversations.splice(index, 1);
+    
+    // Flatten conversations back into chat history
+    state.chatHistory = conversations.flat();
+    
+    // Save updated history
+    if (state.saveHistory) {
+        saveChatHistory();
+    }
+    
+    // Updated UI
+    updateChatHistoryList();
+}
+
+// Select the model used for API requests
+async function updateApiUrl() {
+    const model = state.selectedModel;
+    state.currentApiUrl = `${API_BASE_URL}/models/${model}:generateContent`;
+}
+
+// Update model select dropdown
+function updateModelSelect() {
+    const modelSelects = document.querySelectorAll('#model-select');
+    modelSelects.forEach(select => {
+        select.innerHTML = '';
+        
+        state.availableModels.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model.id;
+            option.textContent = model.name;
+            option.title = model.description;
+            option.selected = model.id === state.selectedModel;
+            select.appendChild(option);
+        });
+        
+        // Enable/disable based on whether we have models
+        select.disabled = state.availableModels.length === 0;
+        
+        // Update the API URL for the selected model
+        updateApiUrl();
+    });
+}
+
+// Add model select event listener
+if (elements.modelSelect) {
+    elements.modelSelect.addEventListener('change', (e) => {
+        state.selectedModel = e.target.value;
+        localStorage.setItem('ctfbot_selected_model', state.selectedModel);
+        updateApiUrl();
+    });
+}
+
+// Add message to chat UI
+function addMessageToChat(type, content) {
+    // Hide welcome screen when messages are added
+    if (elements.welcomeScreen) {
+        elements.welcomeScreen.style.display = 'none';
+    }
+    
+    // Create message element
+    const messageDiv = document.createElement('div');
+    messageDiv.classList.add('message', type);
+    
+    const contentDiv = document.createElement('div');
+    contentDiv.classList.add('message-content');
+    
+    // Process content for code blocks, markdown, etc.
+    const formattedContent = processMessageContent(content);
+    contentDiv.innerHTML = formattedContent;
+    
+    // Add copy button to code blocks
+    const codeBlocks = contentDiv.querySelectorAll('pre');
+    codeBlocks.forEach(block => {
+        const copyBtn = document.createElement('button');
+        copyBtn.classList.add('copy-btn');
+        copyBtn.textContent = 'Copy';
+        copyBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(block.textContent);
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => {
+                copyBtn.textContent = 'Copy';
+            }, 2000);
+        });
+        block.parentNode.appendChild(copyBtn);
+    });
+    
+    messageDiv.appendChild(contentDiv);
+    elements.chatMessages.appendChild(messageDiv);
+    
+    // Scroll to bottom
+    elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+    
+    // Save message to history
+    if (state.saveHistory) {
+        state.chatHistory.push({ type, content });
+        saveChatHistory();
+    }
+    
+    console.log(`Current chatting with: ${content}`)
+    // Updated UI
+    updateChatHistoryList();
+}
+
+// Process message content for formatting
+function processMessageContent(content) {
+    if (!content) return '';
+    
+    // Escape HTML to prevent XSS
+    let processed = escapeHtml(content);
+    
+    // Process code blocks (```code```)
+    processed = processed.replace(/```([\s\S]*?)```/g, (match, code) => {
+        return `<div class="code-block"><pre>${code}</pre></div>`;
+    });
+    
+    // Process inline code (`code`)
+    processed = processed.replace(/`([^`]+)`/g, '<code>$1</code>');
+    
+    // Process bold (**text**)
+    processed = processed.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    
+    // Process italic (*text*)
+    processed = processed.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    
+    // Convert URLs to clickable links
+    processed = processed.replace(
+        /https?:\/\/[^\s)]+/g, 
+        '<a href="$&" target="_blank" rel="noopener noreferrer">$&</a>'
+    );
+    
+    // Convert line breaks to <br>
+    processed = processed.replace(/\n/g, '<br>');
+    
+    return processed;
+}
+
+// Escape HTML to prevent XSS
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Handle file upload
+function handleFileUpload(event) {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    
+    // Process each file
+    Array.from(files).forEach(file => {
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+            const fileContent = e.target.result;
+            
+            // Add file to state
+            state.uploadedFiles.push({
+                name: file.name,
+                type: file.type,
+                content: fileContent
+            });
+            
+            // Add file attachment message
+            const fileMessage = `Uploaded file: ${file.name} (${formatFileSize(file.size)})`;
+            addMessageToChat('user', fileMessage);
+        };
+        
+        if (file.type.startsWith('text') || 
+            file.type === 'application/json' ||
+            file.name.match(/\.(txt|js|py|html|css|json|md|cpp|c|h|java|rb|php|sh|bat|ps1|sql|yaml|yml|xml)$/i)) {
+            // Read as text if it's a text file
+            reader.readAsText(file);
+        } else {
+            // Read as data URL for binary files
+            reader.readAsDataURL(file);
+        }
+    });
+    
+    // Reset file input
+    event.target.value = null;
+}
+
+// Format file size
+function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' bytes';
+    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+// Set the processing state (loading indicator, button state)
+function setProcessingState(isProcessing) {
+    state.isProcessing = isProcessing;
+    elements.sendBtn.disabled = isProcessing;
+    
+    // Hide the welcome screen when starting to process
+    if (isProcessing && elements.welcomeScreen) {
+        elements.welcomeScreen.style.display = 'none';
+    }
+    
+    // Show/hide the typing indicator inside the chat
+    elements.typingIndicator.style.display = isProcessing ? 'block' : 'none';
+    
+    // Scroll to make sure typing indicator is visible
+    if (isProcessing) {
+        elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+    }
+    
+    // Update API status indicator
+    elements.apiStatusIndicator.classList.toggle('connected', isProcessing);
+}
+
+// New Chat button
 
 // Add new function to update chat history list
 function updateChatHistoryList() {
