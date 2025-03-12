@@ -137,19 +137,7 @@
 
                     <div class="chat-input-container">
                         <div class="input-options">
-                            <button id="upload-btn" class="option-btn" aria-label="Upload file">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                    <polyline points="17 8 12 3 7 8"></polyline>
-                                    <line x1="12" y1="3" x2="12" y2="15"></line>
-                                </svg>
-                            </button>
-                            <input type="file" id="file-upload" hidden>
-                            
                             <div class="assistance-options">
-                                <select id="model-select" class="option-select">
-                                    <option value="">Loading models...</option>
-                                </select>
                                 <select id="assistance-type" class="option-select">
                                     <option value="analyze">Analyze Challenge</option>
                                     <option value="hint">Give Hint</option>
@@ -158,7 +146,7 @@
                                 </select>
                             </div>
                         </div>
-
+                        
                         <div class="message-input-wrapper">
                             <textarea id="message-input" placeholder="Describe your CTF challenge or ask a question..." rows="1"></textarea>
                             <button id="send-btn" aria-label="Send message">
@@ -209,15 +197,6 @@
                         <li>Copy your API key and paste it here</li>
                     </ol>
                     <p>The API is free with generous usage limits suitable for CTF competitions!</p>
-                </div>
-                <div class="settings-group">
-                    <label for="model-select">AI Model</label>
-                    <div class="model-select-container">
-                        <select id="model-select" disabled>
-                            <option value="">Loading available models...</option>
-                        </select>
-                        <small class="model-info">Select the Gemini model to use. Different models have different capabilities and performance characteristics.</small>
-                    </div>
                 </div>
                 <div class="settings-group">
                     <label>Theme</label>
