@@ -30,6 +30,26 @@ const state = {
     currentContext: ''
 };
 
+// DOM Elements
+const elements = {
+    messageInput: document.getElementById('message-input'),
+    sendBtn: document.getElementById('send-btn'),
+    chatMessages: document.getElementById('chat-messages'),
+    welcomeScreen: document.getElementById('welcome-screen'),
+    typingIndicator: document.getElementById('typing-indicator'),
+    apiKeyInput: document.getElementById('api-key'),
+    apiKeyNotice: document.getElementById('api-key-notice'),
+    settingsModal: document.getElementById('settings-modal'),
+    historyToggle: document.getElementById('history-toggle'),
+    apiStatusIndicator: document.getElementById('api-status-indicator'),
+    apiStatusText: document.getElementById('api-status-text'),
+    chatHistorySidebar: document.getElementById('chat-history-sidebar'),
+    chatHistoryList: document.getElementById('chat-history-list'),
+    sidebarOverlay: document.querySelector('.sidebar-overlay'),
+    assistanceType: document.getElementById('assistance-type'),
+    themeButtons: document.querySelectorAll('.theme-btn')
+};
+
 // Initialize the application
 async function init() {
     loadChatHistory();
@@ -48,13 +68,51 @@ async function init() {
     adjustTextareaHeight();
 }
 
+// Setup event listeners
+function setupEventListeners() {
+    // Message input
+    elements.messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSendMessage();
+        }
+    });
+    
+    elements.sendBtn.addEventListener('click', handleSendMessage);
+    
+    // Chat history sidebar
+    document.getElementById('history-menu-btn').addEventListener('click', toggleChatHistory);
+    document.getElementById('close-history-btn').addEventListener('click', toggleChatHistory);
+    if (elements.sidebarOverlay) {
+        elements.sidebarOverlay.addEventListener('click', toggleChatHistory);
+    }
+
+    // Settings modal
+    document.getElementById('settings-btn').addEventListener('click', openSettingsModal);
+    document.getElementById('close-settings').addEventListener('click', closeSettingsModal);
+    document.getElementById('save-settings').addEventListener('click', saveSettings);
+    
+    // Theme toggle
+    document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+    
+    // Adjust textarea height on input
+    elements.messageInput.addEventListener('input', adjustTextareaHeight);
+}
+
+// Adjust textarea height
+function adjustTextareaHeight() {
+    const textarea = elements.messageInput;
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
+}
+
 // Send message to the Gemini API
 async function handleSendMessage() {
     const message = elements.messageInput.value.trim();
     const assistanceType = elements.assistanceType.value;
     
     // Don't send empty messages
-    if (!message && state.uploadedFiles.length === 0) return;
+    if (!message) return;
     
     // Check if API key is set
     if (!state.apiKey) {
@@ -251,8 +309,8 @@ function setProcessingState(isProcessing) {
     state.isProcessing = isProcessing;
     elements.sendBtn.disabled = isProcessing;
     
-    // Show/hide overlay
-    elements.sidebar.style.display = isProcessing ? 'none' : 'block';
+    // Show/hide typing indicator
+    elements.typingIndicator.style.display = isProcessing ? 'block' : 'none';
     
     // Hide the welcome screen when processing
     if (!isProcessing && elements.welcomeScreen) {
@@ -404,7 +462,7 @@ function toggleChatHistory() {
     elements.sidebarOverlay.classList.toggle('show');
 }
 
-// Add new function to update chat history list
+// Add a new function to update chat history list
 function updateChatHistoryList() {
     // Clear existing history list
     elements.chatHistoryList.innerHTML = '';
@@ -450,10 +508,11 @@ function updateChatHistoryList() {
         const date = new Date().toLocaleDateString();
         
         chatItem.innerHTML = `
-            <div class="chat-title">${title}</div>
-            <div class="chat-date">${date}</div>
+            <div class="chat-info">
+                <div class="chat-title">${title}</div>
+                <div class="chat-date">${date}</div>
+            </div>
             <button class="delete-chat-btn" aria-label="Delete conversation">×</button>
-            <div class="playgame-menu" aria-haspopup="true" onclick="this.nextElementSibling.style.display=(this.classList.toggle('expanded') ? 'block' : 'none')"><span>MENU</span><div class="playgame-dropdown menu-winter"><div class="play-game opt-past">BLACKOUT</div></div></div>
         `;
         
         // Add click handler to load conversation
@@ -559,3 +618,6 @@ if (elements.modelSelect) {
         selectedValue === state.selectedModel || showUpdate();
     });
 }
+
+// Initialize the app when the DOM is loaded
+document.addEventListener('DOMContentLoaded', init);
