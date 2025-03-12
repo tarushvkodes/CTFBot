@@ -208,6 +208,15 @@
                     <p>The API is free with generous usage limits suitable for CTF competitions!</p>
                 </div>
                 <div class="settings-group">
+                    <label for="model-select">AI Model</label>
+                    <div class="model-select-container">
+                        <select id="model-select" disabled>
+                            <option value="">Loading available models...</option>
+                        </select>
+                        <small class="model-info">Select the Gemini model to use. Different models have different capabilities and performance characteristics.</small>
+                    </div>
+                </div>
+                <div class="settings-group">
                     <label>Theme</label>
                     <div class="theme-options">
                         <button class="theme-btn" data-theme="light">Light</button>
