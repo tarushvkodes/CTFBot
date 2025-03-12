@@ -557,6 +557,9 @@ function setProcessingState(isProcessing) {
 // Fetch available Gemini models
 async function fetchAvailableModels() {
     try {
+        elements.modelSelect.disabled = true;
+        elements.modelSelect.innerHTML = '<option value="">Loading available models...</option>';
+        
         const response = await fetch(`${API_BASE_URL}/models?key=${state.apiKey}`);
         const data = await response.json();
         
@@ -564,23 +567,63 @@ async function fetchAvailableModels() {
             throw new Error(data.error.message || "Failed to fetch models");
         }
         
-        // Filter for Gemini models only
+        // Filter for Gemini models and sort by name
         state.availableModels = data.models
             .filter(model => model.name.includes('gemini'))
             .map(model => ({
                 id: model.name.split('/').pop(),
                 name: model.displayName || model.name,
                 description: model.description || ''
-            }));
-            
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+        
         // Update model select dropdown
         updateModelSelect();
-        
         return true;
     } catch (error) {
         console.error('Error fetching models:', error);
+        elements.modelSelect.innerHTML = '<option value="">Failed to load models</option>';
         return false;
+    } finally {
+        elements.modelSelect.disabled = false;
     }
+}
+
+// Select the model used for API requests
+async function updateApiUrl() {
+    const model = state.selectedModel;
+    state.currentApiUrl = `${API_BASE_URL}/models/${model}:generateContent`;
+}
+
+// Update model select dropdown
+function updateModelSelect() {
+    if (!elements.modelSelect) return;
+    
+    elements.modelSelect.innerHTML = '';
+    
+    state.availableModels.forEach(model => {
+        const option = document.createElement('option');
+        option.value = model.id;
+        option.textContent = model.name;
+        option.title = model.description;
+        option.selected = model.id === state.selectedModel;
+        elements.modelSelect.appendChild(option);
+    });
+    
+    // Enable/disable based on whether we have models
+    elements.modelSelect.disabled = state.availableModels.length === 0;
+    
+    // Update the API URL for the selected model
+    updateApiUrl();
+}
+
+// Add model select event listener
+if (elements.modelSelect) {
+    elements.modelSelect.addEventListener('change', (e) => {
+        state.selectedModel = e.target.value;
+        localStorage.setItem('ctfbot_selected_model', state.selectedModel);
+        updateApiUrl();
+    });
 }
 
 // Check API status
@@ -625,27 +668,30 @@ function closeSettingsModal() {
 
 // Save settings
 async function saveSettings() {
-    // Save API key if provided
     const newApiKey = elements.apiKeyInput.value.trim();
-    if (newApiKey) {
+    if (newApiKey && newApiKey !== state.apiKey) {
         state.apiKey = newApiKey;
         localStorage.setItem('ctfbot_api_key', newApiKey);
-        checkApiKeyStatus(); // Update UI based on API key presence
+        await fetchAvailableModels(); // Fetch models when API key changes
+        checkApiKeyStatus();
+    }
+    
+    // Save model selection
+    const selectedModel = elements.modelSelect.value;
+    if (selectedModel && selectedModel !== state.selectedModel) {
+        state.selectedModel = selectedModel;
+        localStorage.setItem('ctfbot_selected_model', selectedModel);
+        updateApiUrl();
     }
     
     // Save history preference
     state.saveHistory = elements.historyToggle.checked;
     localStorage.setItem('ctfbot_save_history', state.saveHistory);
     
-    // If history is turned off, clear history
     if (!state.saveHistory) {
         clearChatHistory();
     }
     
-    // Check API status with new key
-    checkApiStatus();
-    
-    // Close modal
     closeSettingsModal();
 }
 
