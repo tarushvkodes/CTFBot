@@ -73,6 +73,58 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
+/* Critical path optimization */
+html {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Layout optimizations to prevent shifts */
+.app-container {
+    min-height: 100vh;
+    opacity: 1;
+    visibility: visible;
+    contain: content;
+}
+
+/* Performance optimizations */
+.chat-messages {
+    contain: content;
+    will-change: transform;
+    transform: translateZ(0);
+    -webkit-overflow-scrolling: touch;
+}
+
+.message {
+    contain: content;
+    will-change: transform;
+}
+
+/* Reduce repaints */
+.chat-interface, 
+.chat-container, 
+.message-input-wrapper,
+.modal-content {
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
+}
+
+/* Optimize animations */
+@media (prefers-reduced-motion: no-preference) {
+    .message {
+        animation: fadeIn 0.2s ease-out;
+    }
+    
+    .modal.show {
+        animation: fadeIn 0.2s ease-out;
+    }
+    
+    .typing-indicator span {
+        animation: typing 1s ease-in-out infinite;
+    }
+}
+
 /* Main layout - optimize for mobile */
 .app-container {
     display: flex;

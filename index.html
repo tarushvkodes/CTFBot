@@ -7,19 +7,35 @@
     <meta name="description" content="CTFBot is an AI-powered assistant for CTF competitions that helps analyze challenges, provide hints, and suggest solution approaches.">
     <meta name="author" content="tarushvkodes">
     
+    <!-- Critical CSS inline to prevent FOUC -->
+    <style>
+        :root { --color-bg-primary: #ffffff; }
+        [data-theme="dark"] { --color-bg-primary: #1e1e1e; }
+        body { 
+            background-color: var(--color-bg-primary);
+            margin: 0;
+            opacity: 0;
+            animation: fadeIn 0.3s ease forwards;
+        }
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+    </style>
+    
+    <!-- Preconnect to external resources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" href="assets/css/styles.css" as="style">
+    <link rel="preload" href="assets/js/app.js" as="script">
+    
     <!-- Favicon -->
     <link rel="icon" href="assets/images/ctfbot-logo.svg" type="image/svg+xml">
     
     <!-- Font - Atkinson Hyperlegible -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
     
     <!-- CSS -->
     <link rel="stylesheet" href="assets/css/styles.css">
-    
-    <!-- Deferred JS loading -->
-    <script src="assets/js/app.js" defer></script>
 </head>
 <body>
     <div class="app-container">
@@ -230,5 +246,8 @@
         <div class="spinner"></div>
         <p>Thinking...</p>
     </div>
+    
+    <!-- Load JavaScript -->
+    <script src="assets/js/app.js"></script>
 </body>
 </html>

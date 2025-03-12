@@ -52,17 +52,26 @@ const elements = {
 
 // Initialize the application
 async function init() {
-    loadChatHistory();
-    setupEventListeners();
+    // Apply theme immediately before any other operations
     applyTheme();
     
+    // Setup event listeners
+    setupEventListeners();
+    
+    // Load chat history in the background
+    setTimeout(() => {
+        loadChatHistory();
+    }, 0);
+    
+    // Check API key status in the background
     if (state.apiKey) {
         elements.apiKeyInput.value = state.apiKey;
-        await checkApiKeyStatus();
-        // Hide API notice if key is set
-        if (elements.apiKeyNotice) {
-            elements.apiKeyNotice.style.display = 'none';
-        }
+        setTimeout(async () => {
+            await checkApiKeyStatus();
+            if (elements.apiKeyNotice) {
+                elements.apiKeyNotice.style.display = 'none';
+            }
+        }, 0);
     }
     
     adjustTextareaHeight();
@@ -482,14 +491,29 @@ function toggleTheme() {
     applyTheme();
 }
 
-// Apply current theme
+// Apply current theme - optimized version
 function applyTheme() {
-    // Get system preference if theme is set to 'system'
-    if (state.theme === 'system') {
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
-    } else {
-        document.documentElement.setAttribute('data-theme', state.theme);
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+    
+    function updateTheme() {
+        if (state.theme === 'system') {
+            document.documentElement.setAttribute('data-theme', prefersDark.matches ? 'dark' : 'light');
+        } else {
+            document.documentElement.setAttribute('data-theme', state.theme);
+        }
+    }
+    
+    // Update theme immediately
+    updateTheme();
+    
+    // Listen for system theme changes
+    prefersDark.addEventListener('change', updateTheme);
+    
+    // Update theme buttons
+    if (elements.themeButtons) {
+        elements.themeButtons.forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-theme') === state.theme);
+        });
     }
 }
 
