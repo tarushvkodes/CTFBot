@@ -29,6 +29,8 @@ const elements = {
     fileUpload: document.getElementById('file-upload'),
     loadingIndicator: document.getElementById('loading-indicator'),
     typingIndicator: document.getElementById('typing-indicator'),
+    welcomeScreen: document.getElementById('welcome-screen'),
+    newChatBtn: document.getElementById('new-chat-btn'),
     
     // API and status elements
     apiStatusIndicator: document.getElementById('api-status-indicator'),
@@ -139,6 +141,9 @@ function setupEventListeners() {
     // API key setup button
     elements.setupApiKeyBtn?.addEventListener('click', openSettingsModal);
     
+    // New Chat button
+    elements.newChatBtn?.addEventListener('click', startNewChat);
+    
     // API Key Instructions toggle
     document.getElementById('get-api-key-instructions').addEventListener('click', (e) => {
         e.preventDefault();
@@ -165,6 +170,35 @@ function setupEventListeners() {
             closeSettingsModal();
         }
     });
+}
+
+// Start a new chat
+function startNewChat() {
+    // Clear the chat interface
+    while (elements.chatMessages.children.length > 0) {
+        // Keep only the welcome screen and typing indicator
+        if (elements.chatMessages.firstChild.id === 'welcome-screen' || 
+            elements.chatMessages.firstChild.id === 'typing-indicator') {
+            break;
+        }
+        elements.chatMessages.removeChild(elements.chatMessages.firstChild);
+    }
+    
+    // Show welcome screen if it exists
+    if (elements.welcomeScreen) {
+        elements.welcomeScreen.style.display = 'flex';
+    }
+    
+    // Clear chat history from memory (but keep in localStorage if enabled)
+    state.chatHistory = [];
+    state.uploadedFiles = [];
+    
+    // Show initial message after a short delay
+    setTimeout(() => {
+        if (elements.chatMessages.children.length <= 2) { // Only welcome screen and typing indicator
+            addMessageToChat('system', 'Hello! I\'m CTFBot, your Capture The Flag assistant. Describe your challenge or upload files to get started.');
+        }
+    }, 100);
 }
 
 // Function to adjust textarea height based on content
@@ -337,6 +371,11 @@ function constructPromptWithHistory(userPrompt) {
 
 // Add message to chat UI
 function addMessageToChat(type, content) {
+    // Hide welcome screen when messages are added
+    if (elements.welcomeScreen) {
+        elements.welcomeScreen.style.display = 'none';
+    }
+    
     // Create message element
     const messageDiv = document.createElement('div');
     messageDiv.classList.add('message', type);
@@ -467,7 +506,21 @@ function formatFileSize(bytes) {
 function setProcessingState(isProcessing) {
     state.isProcessing = isProcessing;
     elements.sendBtn.disabled = isProcessing;
-    elements.loadingIndicator.classList.toggle('show', isProcessing);
+    
+    // Hide the welcome screen when starting to process
+    if (isProcessing && elements.welcomeScreen) {
+        elements.welcomeScreen.style.display = 'none';
+    }
+    
+    // Show/hide the typing indicator inside the chat
+    elements.typingIndicator.style.display = isProcessing ? 'block' : 'none';
+    
+    // Scroll to make sure typing indicator is visible
+    if (isProcessing) {
+        elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+    }
+    
+    // Update API status indicator
     elements.apiStatusIndicator.classList.toggle('connected', isProcessing);
 }
 

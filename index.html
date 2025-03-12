@@ -29,11 +29,17 @@
                 <h1>CTFBot</h1>
             </div>
             <nav>
-                <button id="theme-toggle" aria-label="Toggle dark/light theme">
-                    <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <button id="new-chat-btn" class="nav-btn" aria-label="Start a new chat">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 5v14M5 12h14"></path>
+                    </svg>
+                    <span>New Chat</span>
+                </button>
+                <button id="theme-toggle" class="nav-btn" aria-label="Toggle dark/light theme">
+                    <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
                     </svg>
-                    <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="5"></circle>
                         <line x1="12" y1="1" x2="12" y2="3"></line>
                         <line x1="12" y1="21" x2="12" y2="23"></line>
@@ -45,114 +51,111 @@
                         <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
                     </svg>
                 </button>
+                <button id="settings-btn" class="nav-btn" aria-label="Settings">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                </button>
             </nav>
         </header>
 
         <main>
-            <section class="hero-section">
-                <h2>Your AI-Powered CTF Assistant</h2>
-                <p>Get help analyzing challenges, generate hints, and learn security concepts in real-time.</p>
-                <div class="model-badge">Powered by Gemini 2.0 Flash</div>
-                
-                <!-- API Key Notice - Prominently displayed on homepage -->
-                <div class="api-key-notice" id="api-key-notice">
-                    <div class="notice-icon">🔑</div>
-                    <div class="notice-content">
-                        <h3>API Key Required</h3>
-                        <p>CTFBot requires a Gemini API key to function. Get your free API key from Google AI Studio.</p>
-                        <button id="setup-api-key" class="btn-primary">Set up API Key</button>
-                    </div>
+            <!-- API Key Notice - Only shown when needed -->
+            <div class="api-key-notice" id="api-key-notice">
+                <div class="notice-icon">🔑</div>
+                <div class="notice-content">
+                    <h3>API Key Required</h3>
+                    <p>CTFBot requires a Gemini API key to function. Get your free API key from Google AI Studio.</p>
+                    <div class="model-badge">Powered by Gemini 2.0 Flash</div>
+                    <button id="setup-api-key" class="btn-primary">Set up API Key</button>
                 </div>
-            </section>
+            </div>
 
-            <section class="chat-container">
-                <div class="chat-messages" id="chat-messages">
-                    <div class="message system">
-                        <div class="message-content">
-                            <p>Hello! I'm CTFBot, your Capture The Flag assistant. Describe your challenge or upload files to get started.</p>
-                        </div>
-                    </div>
-                    <!-- Typing indicator -->
-                    <div class="message bot typing-indicator-container" id="typing-indicator" style="display: none;">
-                        <div class="message-content">
-                            <div class="typing-indicator">
-                                <span></span>
-                                <span></span>
-                                <span></span>
+            <div class="chat-interface">
+                <section class="chat-container">
+                    <div class="chat-messages" id="chat-messages">
+                        <div class="welcome-screen" id="welcome-screen">
+                            <h2>Your AI-Powered CTF Assistant</h2>
+                            <p>Get help analyzing challenges, generate hints, and learn security concepts in real-time.</p>
+                            <div class="model-badge">Powered by Gemini 2.0 Flash</div>
+                            
+                            <div class="features-grid">
+                                <div class="feature-card">
+                                    <div class="feature-icon">🔍</div>
+                                    <h4>Challenge Analysis</h4>
+                                    <p>Automatically detects challenge types and provides targeted assistance</p>
+                                </div>
+                                <div class="feature-card">
+                                    <div class="feature-icon">💡</div>
+                                    <h4>Progressive Hints</h4>
+                                    <p>Get hints without spoiling the entire solution</p>
+                                </div>
+                                <div class="feature-card">
+                                    <div class="feature-icon">🔧</div>
+                                    <h4>Tool Suggestions</h4>
+                                    <p>Get recommendations for relevant tools based on challenge type</p>
+                                </div>
+                                <div class="feature-card">
+                                    <div class="feature-icon">📚</div>
+                                    <h4>Learning Resources</h4>
+                                    <p>Learn security concepts and vulnerability explanations</p>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <!-- Messages will be added here dynamically -->
-                </div>
-
-                <div class="chat-input-container">
-                    <div class="input-options">
-                        <button id="upload-btn" class="option-btn" aria-label="Upload file">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                <polyline points="17 8 12 3 7 8"></polyline>
-                                <line x1="12" y1="3" x2="12" y2="15"></line>
-                            </svg>
-                        </button>
-                        <input type="file" id="file-upload" hidden>
                         
-                        <div class="assistance-type">
-                            <select id="assistance-type">
-                                <option value="analyze">Analyze Challenge</option>
-                                <option value="hint">Give Hint</option>
-                                <option value="approach">Suggest Approach</option>
-                                <option value="explain">Explain Concept</option>
-                            </select>
+                        <!-- Typing indicator moved inside chat messages area -->
+                        <div class="message bot typing-indicator-container" id="typing-indicator" style="display: none;">
+                            <div class="message-content">
+                                <div class="typing-indicator">
+                                    <span></span>
+                                    <span></span>
+                                    <span></span>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Messages will be added here dynamically -->
+                    </div>
+
+                    <div class="chat-input-container">
+                        <div class="input-options">
+                            <button id="upload-btn" class="option-btn" aria-label="Upload file">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="17 8 12 3 7 8"></polyline>
+                                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                                </svg>
+                            </button>
+                            <input type="file" id="file-upload" hidden>
+                            
+                            <div class="assistance-type">
+                                <select id="assistance-type">
+                                    <option value="analyze">Analyze Challenge</option>
+                                    <option value="hint">Give Hint</option>
+                                    <option value="approach">Suggest Approach</option>
+                                    <option value="explain">Explain Concept</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="message-input-wrapper">
+                            <textarea id="message-input" placeholder="Describe your CTF challenge or ask a question..." rows="1"></textarea>
+                            <button id="send-btn" aria-label="Send message">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                                </svg>
+                            </button>
                         </div>
                     </div>
-
-                    <div class="message-input-wrapper">
-                        <textarea id="message-input" placeholder="Describe your CTF challenge or ask a question..." rows="1"></textarea>
-                        <button id="send-btn" aria-label="Send message">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <line x1="22" y1="2" x2="11" y2="13"></line>
-                                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            </section>
-
-            <section class="features-section">
-                <h3>CTFBot Features</h3>
-                <div class="features-grid">
-                    <div class="feature-card">
-                        <div class="feature-icon">🔍</div>
-                        <h4>Challenge Analysis</h4>
-                        <p>Automatically detects challenge types and provides targeted assistance</p>
-                    </div>
-                    <div class="feature-card">
-                        <div class="feature-icon">💡</div>
-                        <h4>Progressive Hints</h4>
-                        <p>Get hints without spoiling the entire solution</p>
-                    </div>
-                    <div class="feature-card">
-                        <div class="feature-icon">🔧</div>
-                        <h4>Tool Suggestions</h4>
-                        <p>Get recommendations for relevant tools based on challenge type</p>
-                    </div>
-                    <div class="feature-card">
-                        <div class="feature-icon">📚</div>
-                        <h4>Learning Resources</h4>
-                        <p>Learn security concepts and vulnerability explanations</p>
-                    </div>
-                </div>
-            </section>
+                </section>
+            </div>
         </main>
 
         <footer>
             <div class="api-status">
                 <span id="api-status-indicator"></span>
                 <span id="api-status-text">API Status: Checking...</span>
-            </div>
-            <div class="footer-links">
-                <a href="https://github.com/tarushvkodes/CTFBot" target="_blank" rel="noopener noreferrer">GitHub</a>
-                <a href="#" id="settings-btn">Settings</a>
             </div>
             <div class="copyright">
                 &copy; Copyright Tarushv Kosgi 2025. All rights reserved.
