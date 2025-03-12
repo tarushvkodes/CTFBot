@@ -95,28 +95,20 @@ header {
     z-index: 10;
 }
 
-.logo-container {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-#logo {
-    height: 2rem;
-    width: auto;
-    transition: transform var(--transition-normal);
-}
-
-.logo-container h1 {
-    font-size: 1.25rem;
-    font-weight: 700;
-}
-
 /* Navigation and buttons */
-nav {
+.nav-left, .nav-right {
     display: flex;
     align-items: center;
     gap: 0.75rem;
+}
+
+.nav-left {
+    min-width: var(--sidebar-width);
+    padding-left: 0.5rem;
+}
+
+.nav-right {
+    padding-right: 0.5rem;
 }
 
 .nav-btn {
@@ -140,6 +132,28 @@ nav {
 #new-chat-btn {
     border: 1px solid var(--color-border);
     font-weight: 600;
+}
+
+/* Ensure the logo stays centered */
+.logo-container {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    pointer-events: none;
+}
+
+#logo {
+    height: 2rem;
+    width: auto;
+    transition: transform var(--transition-normal);
+}
+
+.logo-container h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
 }
 
 /* Main content area */

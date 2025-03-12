@@ -24,12 +24,8 @@
 <body>
     <div class="app-container">
         <header>
-            <div class="logo-container">
-                <img src="assets/images/ctfbot-logo.svg" alt="CTFBot Logo" id="logo">
-                <h1>CTFBot</h1>
-            </div>
-            <nav>
-                <!-- Add hamburger menu button for chat history -->
+            <nav class="nav-left">
+                <!-- Move hamburger menu button to the left -->
                 <button id="history-menu-btn" class="nav-btn" aria-label="Chat History">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="3" y1="12" x2="21" y2="12"></line>
@@ -37,6 +33,12 @@
                         <line x1="3" y1="18" x2="21" y2="18"></line>
                     </svg>
                 </button>
+            </nav>
+            <div class="logo-container">
+                <img src="assets/images/ctfbot-logo.svg" alt="CTFBot Logo" id="logo">
+                <h1>CTFBot</h1>
+            </div>
+            <nav class="nav-right">
                 <button id="new-chat-btn" class="nav-btn" aria-label="Start a new chat">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 5v14M5 12h14"></path>
