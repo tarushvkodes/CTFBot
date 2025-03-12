@@ -39,6 +39,10 @@ async function init() {
     if (state.apiKey) {
         elements.apiKeyInput.value = state.apiKey;
         await checkApiKeyStatus();
+        // Hide API notice if key is set
+        if (elements.apiKeyNotice) {
+            elements.apiKeyNotice.style.display = 'none';
+        }
     }
     
     adjustTextareaHeight();
@@ -273,6 +277,10 @@ function updateApiStatus(isConnected, errorMessage = '') {
     
     if (isConnected) {
         elements.apiStatusText.textContent = 'API Status: Connected';
+        // Hide API notice when successfully connected
+        if (elements.apiKeyNotice) {
+            elements.apiKeyNotice.style.display = 'none';
+        }
     } else {
         elements.apiStatusText.textContent = `API Status: Error${errorMessage ? ' - ' + errorMessage : ''}`;
     }
@@ -294,8 +302,7 @@ async function saveSettings() {
     if (newApiKey && newApiKey !== state.apiKey) {
         state.apiKey = newApiKey;
         localStorage.setItem('ctfbot_api_key', newApiKey);
-        await fetchAvailableModels(); // Fetch models when API key changes
-        checkApiKeyStatus();
+        await checkApiKeyStatus();
     }
     
     // Save history preference
