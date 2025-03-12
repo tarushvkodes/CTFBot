@@ -157,12 +157,16 @@ main {
     padding: 1.5rem;
     margin: 1rem;
     border-radius: 0.5rem;
-    display: flex;
+    display: none; /* Hidden by default */
     gap: 1rem;
     align-items: center;
     box-shadow: var(--shadow-md);
     border: 1px solid var(--color-border);
     animation: slideIn var(--transition-normal);
+}
+
+.api-key-notice.show {
+    display: flex;
 }
 
 .api-key-notice .notice-icon {
@@ -174,19 +178,12 @@ main {
     color: var(--color-accent);
 }
 
-.api-key-notice.hidden {
-    display: none;
-}
-
 /* Chat interface */
 .chat-interface {
     display: flex;
     flex-direction: column;
     flex: 1;
     height: 100%;
-    width: 100%;
-    max-width: var(--chat-width);
-    margin: 0 auto;
     position: relative;
 }
 
@@ -203,9 +200,10 @@ main {
     flex: 1;
     overflow-y: auto;
     scroll-behavior: smooth;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
+}
+
+.chat-messages::-webkit-scrollbar {
+    display: none; /* Hide scrollbar */
 }
 
 /* Welcome screen */
@@ -251,7 +249,6 @@ main {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 1rem;
-    width: 100%;
     margin-top: 1rem;
 }
 
@@ -327,7 +324,6 @@ main {
     gap: 0.25rem;
     max-width: 800px;
     margin: 0 auto;
-    width: 100%;
 }
 
 .typing-indicator span {
@@ -1020,37 +1016,8 @@ input:checked + .slider:before {
 }
 
 /* Settings modal model select */
-.model-select-container {
-    margin-top: 0.5rem;
-}
-
-#model-select {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border-radius: 0.8rem;
-    border: 1px solid var(--border-color);
-    background-color: var(--input-bg);
-    color: var(--text-color);
-    font-size: 0.95rem;
-    appearance: none;
-    -webkit-appearance: none;
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-    background-repeat: no-repeat;
-    background-position: right 1rem center;
-    background-size: 1em;
-    transition: all 0.2s ease;
-}
-
-#model-select:focus {
-    outline: none;
-    border-color: var(--accent-color);
-    box-shadow: 0 0 0 2px var(--accent-color-transparent);
-}
-
+.model-select-container,
+#model-select,
 .model-info {
-    display: block;
-    margin-top: 0.5rem;
-    color: var(--text-secondary);
-    font-size: 0.85rem;
-    line-height: 1.4;
+    display: none;
 }
