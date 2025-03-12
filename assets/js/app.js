@@ -91,6 +91,13 @@ function setupEventListeners() {
     document.getElementById('settings-btn').addEventListener('click', openSettingsModal);
     document.getElementById('close-settings').addEventListener('click', closeSettingsModal);
     document.getElementById('save-settings').addEventListener('click', saveSettings);
+    document.getElementById('setup-api-key').addEventListener('click', openSettingsModal);
+    
+    // API key instructions
+    document.getElementById('get-api-key-instructions').addEventListener('click', (e) => {
+        e.preventDefault();
+        document.getElementById('api-key-instructions').style.display = 'block';
+    });
     
     // Theme toggle
     document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
