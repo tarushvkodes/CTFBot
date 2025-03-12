@@ -230,7 +230,7 @@ async function handleSendMessage() {
     }
 }
 
-// Send message to the Gemini API - improved error handling and retry logic
+// Send message to the Gemini API with streaming support
 async function sendToGemini(prompt) {
     try {
         // More lenient API key validation
@@ -240,8 +240,12 @@ async function sendToGemini(prompt) {
 
         // Construct the full context with chat history and system prompt
         const fullContext = constructPromptWithContext(prompt);
+        const streamingUrl = `${API_BASE_URL}/models/${MODEL_NAME}:streamGenerateContent`;
         
-        const response = await fetch(`${API_URL}?key=${state.apiKey}`, {
+        // Create message container ahead of time
+        const messageContainer = addEmptyMessage('assistant');
+
+        const response = await fetch(`${streamingUrl}?key=${state.apiKey}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -263,21 +267,37 @@ async function sendToGemini(prompt) {
             const errorData = await response.json();
             throw new Error(errorData.error?.message || `API Error: ${response.status}`);
         }
-        
-        const data = await response.json();
-        
-        if (data.error) {
-            updateApiStatus(false, data.error.message);
-            throw new Error(data.error.message);
-        }
-        
-        // Verify we have a valid response
-        if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
-            throw new Error("Invalid response format from API");
+
+        let fullResponse = '';
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            
+            // Decode and process the chunk
+            const chunk = decoder.decode(value);
+            const lines = chunk.split('\n').filter(line => line.trim());
+            
+            for (const line of lines) {
+                try {
+                    if (line.startsWith('data: ')) {
+                        const jsonData = JSON.parse(line.slice(5));
+                        if (jsonData.candidates?.[0]?.content?.parts?.[0]?.text) {
+                            const text = jsonData.candidates[0].content.parts[0].text;
+                            fullResponse += text;
+                            updateMessageContent(messageContainer, fullResponse);
+                        }
+                    }
+                } catch (e) {
+                    console.error('Error parsing streaming response:', e);
+                }
+            }
         }
         
         updateApiStatus(true);
-        return data.candidates[0].content.parts[0].text;
+        return fullResponse;
         
     } catch (error) {
         console.error('API Error:', error);
@@ -290,6 +310,34 @@ async function sendToGemini(prompt) {
         
         throw error;
     }
+}
+
+// Create an empty message container and return it
+function addEmptyMessage(type) {
+    const container = document.createElement('div');
+    container.className = `message message-${type}`;
+    
+    const content = document.createElement('div');
+    content.className = 'message-content';
+    container.appendChild(content);
+    
+    elements.chatMessages.appendChild(container);
+    return container;
+}
+
+// Update message content with new text
+function updateMessageContent(container, text) {
+    const content = container.querySelector('.message-content');
+    const processedContent = processMessageContent(text);
+    content.innerHTML = processedContent;
+    
+    // Scroll to bottom smoothly
+    requestAnimationFrame(() => {
+        elements.chatMessages.scrollTo({
+            top: elements.chatMessages.scrollHeight,
+            behavior: 'smooth'
+        });
+    });
 }
 
 // Improved context construction
