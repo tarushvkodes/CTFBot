@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
-
+    
     <!-- CSS -->
     <link rel="stylesheet" href="assets/css/styles.css">
     
@@ -29,6 +29,14 @@
                 <h1>CTFBot</h1>
             </div>
             <nav>
+                <!-- Add hamburger menu button for chat history -->
+                <button id="history-menu-btn" class="nav-btn" aria-label="Chat History">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
                 <button id="new-chat-btn" class="nav-btn" aria-label="Start a new chat">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 5v14M5 12h14"></path>
@@ -61,6 +69,16 @@
         </header>
 
         <main>
+            <!-- Chat History Sidebar -->
+            <div class="chat-history-sidebar" id="chat-history-sidebar">
+                <div class="chat-history-header">
+                    <h3>Chat History</h3>
+                    <button class="close-history-btn" id="close-history-btn">&times;</button>
+                </div>
+                <div class="chat-history-list" id="chat-history-list">
+                    <!-- Chat history items will be added here dynamically -->
+                </div>
+            </div>
             <!-- API Key Notice - Only shown when needed -->
             <div class="api-key-notice" id="api-key-notice">
                 <div class="notice-icon">🔑</div>
