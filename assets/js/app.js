@@ -80,39 +80,81 @@ async function init() {
 // Setup event listeners
 function setupEventListeners() {
     // Message input
-    elements.messageInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleSendMessage();
-        }
-    });
+    if (elements.messageInput) {
+        elements.messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+            }
+        });
+        elements.messageInput.addEventListener('input', adjustTextareaHeight);
+    }
     
-    elements.sendBtn.addEventListener('click', handleSendMessage);
+    // Send button
+    if (elements.sendBtn) {
+        elements.sendBtn.addEventListener('click', handleSendMessage);
+    }
     
     // Chat history sidebar
-    document.getElementById('history-menu-btn').addEventListener('click', toggleChatHistory);
-    document.getElementById('close-history-btn').addEventListener('click', toggleChatHistory);
+    const historyMenuBtn = document.getElementById('history-menu-btn');
+    const closeHistoryBtn = document.getElementById('close-history-btn');
+    if (historyMenuBtn) {
+        historyMenuBtn.addEventListener('click', toggleChatHistory);
+    }
+    if (closeHistoryBtn) {
+        closeHistoryBtn.addEventListener('click', toggleChatHistory);
+    }
     if (elements.sidebarOverlay) {
         elements.sidebarOverlay.addEventListener('click', toggleChatHistory);
     }
 
     // Settings modal
-    document.getElementById('settings-btn').addEventListener('click', openSettingsModal);
-    document.getElementById('close-settings').addEventListener('click', closeSettingsModal);
-    document.getElementById('save-settings').addEventListener('click', saveSettings);
-    document.getElementById('setup-api-key').addEventListener('click', openSettingsModal);
+    const settingsBtn = document.getElementById('settings-btn');
+    const closeSettingsBtn = document.getElementById('close-settings');
+    const saveSettingsBtn = document.getElementById('save-settings');
+    const setupApiKeyBtn = document.getElementById('setup-api-key');
+    
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', openSettingsModal);
+    }
+    if (closeSettingsBtn) {
+        closeSettingsBtn.addEventListener('click', closeSettingsModal);
+    }
+    if (saveSettingsBtn) {
+        saveSettingsBtn.addEventListener('click', saveSettings);
+    }
+    if (setupApiKeyBtn) {
+        setupApiKeyBtn.addEventListener('click', openSettingsModal);
+    }
     
     // API key instructions
-    document.getElementById('get-api-key-instructions').addEventListener('click', (e) => {
-        e.preventDefault();
-        document.getElementById('api-key-instructions').style.display = 'block';
-    });
+    const apiKeyInstructionsBtn = document.getElementById('get-api-key-instructions');
+    if (apiKeyInstructionsBtn) {
+        apiKeyInstructionsBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('api-key-instructions').style.display = 'block';
+        });
+    }
     
     // Theme toggle
-    document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    if (themeToggleBtn) {
+        themeToggleBtn.addEventListener('click', toggleTheme);
+    }
     
-    // Adjust textarea height on input
-    elements.messageInput.addEventListener('input', adjustTextareaHeight);
+    // Theme buttons in settings
+    if (elements.themeButtons) {
+        elements.themeButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const theme = btn.getAttribute('data-theme');
+                if (theme) {
+                    state.theme = theme;
+                    localStorage.setItem('ctfbot_theme', theme);
+                    applyTheme();
+                }
+            });
+        });
+    }
 }
 
 // Adjust textarea height
@@ -122,12 +164,64 @@ function adjustTextareaHeight() {
     textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
 }
 
+// Handle sending messages
+async function handleSendMessage() {
+    const messageText = elements.messageInput.value.trim();
+    if (!messageText || state.isProcessing) return;
+
+    // Check for API key
+    if (!state.apiKey) {
+        elements.apiKeyNotice.style.display = 'flex';
+        return;
+    }
+
+    try {
+        setProcessingState(true);
+
+        // Format message based on selected assistance type
+        const formattedMessage = formatQueryForAssistanceType(
+            messageText,
+            elements.assistanceType ? elements.assistanceType.value : 'general'
+        );
+
+        // Add user message to chat
+        addMessageToChat('user', messageText);
+        state.chatHistory.push({ type: 'user', content: messageText });
+
+        // Get AI response
+        const response = await sendToGemini(formattedMessage);
+        
+        // Add AI response to chat
+        addMessageToChat('assistant', response);
+        state.chatHistory.push({ type: 'assistant', content: response });
+
+        // Save chat history if enabled
+        if (state.saveHistory) {
+            saveChatHistory();
+            updateChatHistoryList();
+        }
+
+        // Clear input and adjust height
+        elements.messageInput.value = '';
+        adjustTextareaHeight();
+
+        // Scroll to bottom
+        elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+
+    } catch (error) {
+        console.error('Error sending message:', error);
+        addMessageToChat('system', `Error: ${error.message}`);
+    } finally {
+        setProcessingState(false);
+    }
+}
+
 // Send message to the Gemini API - improved error handling and retry logic
 async function sendToGemini(prompt) {
     try {
-        // Validate API key format before making request
-        if (!state.apiKey || !/^[A-Za-z0-9-_]{39}$/.test(state.apiKey)) {
-            throw new Error('Invalid API key format');
+        // More lenient API key validation
+        if (!state.apiKey) {
+            throw new Error('API key is required');
         }
 
         // Construct the full context with chat history and system prompt
@@ -236,72 +330,10 @@ function formatQueryForAssistanceType(userMessage, assistanceType) {
     return formattedPrompt;
 }
 
-// Send message to Gemini API
-async function sendToGemini(prompt) {
-    try {
-        // Validate API key format before making request
-        if (!state.apiKey || !/^[A-Za-z0-9-_]{39}$/.test(state.apiKey)) {
-            throw new Error('Invalid API key format');
-        }
-
-        // Construct the full context with chat history and system prompt
-        const fullContext = constructPromptWithHistory(prompt);
-        
-        const response = await fetch(`${API_URL}?key=${state.apiKey}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                contents: [
-                    {
-                        parts: [
-                            { text: fullContext }
-                        ]
-                    }
-                ],
-                generationConfig: {
-                    temperature: 0.7,
-                    topK: 40,
-                    topP: 0.95,
-                    maxOutputTokens: 8192,
-                }
-            })
-        });
-        
-        const data = await response.json();
-        
-        // Handle specific API errors
-        if (data.error) {
-            const errorMessage = data.error.message || "API Error";
-            updateApiStatus(false, errorMessage);
-            throw new Error(errorMessage);
-        }
-        
-        // Check supported format is present
-        if (data.candidates && data.candidates.length > 0 &&
-            data.candidates[0].content &&
-            data.candidates[0].content.parts &&
-            data.candidates[0].content.parts.length > 0) {
-            updateApiStatus(true);
-            return data.candidates[0].content.parts[0].text;
-        } else {
-            throw new Error("Invalid response format");
-        }
-    } catch (error) {
-        console.error('API Error:', error);
-        updateApiStatus(false, error);
-        if (error.message.includes('API key') || error.message.includes('authentication')) {
-            elements.apiKeyNotice.style.display = 'flex';
-        }
-        throw error;
-    }
-}
-
 // Construct prompt with history and system prompt
 function constructPromptWithHistory(userPrompt) {
     // Start with system prompt
-    let fullPrompt = DEFAULT_SYSTEM_PROMPT + "\n\n";
+    let fullPrompt = `${DEFAULT_SYSTEM_PROMPT}\n\n`;
     
     // Add a reduced version of chat history (last few exchanges only)
     const relevantHistory = state.chatHistory.slice(-MAX_HISTORY_LENGTH);
@@ -407,8 +439,8 @@ async function checkApiStatus() {
 // Improved API status check
 async function checkApiKeyStatus() {
     try {
-        if (!state.apiKey || !/^[A-Za-z0-9-_]{39}$/.test(state.apiKey)) {
-            throw new Error('Invalid API key format');
+        if (!state.apiKey) {
+            throw new Error('API key is required');
         }
 
         const testURL = `${API_BASE_URL}/models/${MODEL_NAME}?key=${state.apiKey}`;
