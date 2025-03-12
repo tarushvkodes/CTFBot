@@ -3,7 +3,7 @@
 
 // Constants and configuration
 const DEFAULT_API_KEY = ""; // No default API key - users must provide their own
-const API_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent"; // Updated to gemini-2.0-flash model
+const API_BASE_URL = "https://generativelanguage.googleapis.com/v1";
 const MAX_HISTORY_LENGTH = 20; // Maximum number of messages to keep in history
 const DEFAULT_SYSTEM_PROMPT = `You are CTFBot, an expert AI assistant specializing in Capture The Flag (CTF) competitions and cybersecurity challenges. Your purpose is to help users analyze challenges, provide hints without giving away complete solutions unless asked, and explain security concepts.
 Focus on these areas:
@@ -55,7 +55,10 @@ const elements = {
     chatHistorySidebar: document.getElementById('chat-history-sidebar'),
     closeHistoryBtn: document.getElementById('close-history-btn'),
     chatHistoryList: document.getElementById('chat-history-list'),
-    sidebarOverlay: document.createElement('div')
+    sidebarOverlay: document.createElement('div'),
+    
+    // Model picker elements
+    modelSelect: document.getElementById('model-select')
 };
 
 // State management
@@ -63,6 +66,8 @@ const state = {
     apiKey: localStorage.getItem('ctfbot_api_key') || DEFAULT_API_KEY,
     theme: localStorage.getItem('ctfbot_theme') || 'system',
     saveHistory: localStorage.getItem('ctfbot_save_history') !== 'false',
+    selectedModel: localStorage.getItem('ctfbot_selected_model') || 'gemini-pro',
+    availableModels: [],
     isProcessing: false,
     chatHistory: [],
     uploadedFiles: [],
@@ -70,17 +75,17 @@ const state = {
 };
 
 // Initialize the application
-function init() {
+async function init() {
     loadChatHistory();
     setupEventListeners();
     applyTheme();
-    checkApiKeyStatus();
-    checkApiStatus();
+    await checkApiKeyStatus();
     adjustTextareaHeight();
     
     // Auto-fill API key in settings if available
     if (state.apiKey) {
         elements.apiKeyInput.value = state.apiKey;
+        await fetchAvailableModels(); // Fetch models if API key is set
     }
     
     // Set active theme button
@@ -322,7 +327,7 @@ async function sendToGemini(prompt) {
         // Construct the full context with chat history and system prompt
         const fullContext = constructPromptWithHistory(fullPrompt);
         
-        const response = await fetch(`${API_URL}?key=${state.apiKey}`, {
+        const response = await fetch(`${state.currentApiUrl}?key=${state.apiKey}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -549,6 +554,35 @@ function setProcessingState(isProcessing) {
     elements.apiStatusIndicator.classList.toggle('connected', isProcessing);
 }
 
+// Fetch available Gemini models
+async function fetchAvailableModels() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/models?key=${state.apiKey}`);
+        const data = await response.json();
+        
+        if (data.error) {
+            throw new Error(data.error.message || "Failed to fetch models");
+        }
+        
+        // Filter for Gemini models only
+        state.availableModels = data.models
+            .filter(model => model.name.includes('gemini'))
+            .map(model => ({
+                id: model.name.split('/').pop(),
+                name: model.displayName || model.name,
+                description: model.description || ''
+            }));
+            
+        // Update model select dropdown
+        updateModelSelect();
+        
+        return true;
+    } catch (error) {
+        console.error('Error fetching models:', error);
+        return false;
+    }
+}
+
 // Check API status
 async function checkApiStatus() {
     try {
@@ -590,21 +624,13 @@ function closeSettingsModal() {
 }
 
 // Save settings
-function saveSettings() {
+async function saveSettings() {
     // Save API key if provided
     const newApiKey = elements.apiKeyInput.value.trim();
     if (newApiKey) {
         state.apiKey = newApiKey;
         localStorage.setItem('ctfbot_api_key', newApiKey);
         checkApiKeyStatus(); // Update UI based on API key presence
-    }
-    
-    // Save theme preference
-    const activeThemeBtn = document.querySelector('.theme-btn.active');
-    if (activeThemeBtn) {
-        state.theme = activeThemeBtn.getAttribute('data-theme');
-        localStorage.setItem('ctfbot_theme', state.theme);
-        applyTheme();
     }
     
     // Save history preference
