@@ -113,54 +113,93 @@ function adjustTextareaHeight() {
     textarea.style.height = Math.min(textarea.scrollHeight, 150) + 'px';
 }
 
-// Send message to the Gemini API
-async function handleSendMessage() {
-    const message = elements.messageInput.value.trim();
-    const assistanceType = elements.assistanceType.value;
-    
-    // Don't send empty messages
-    if (!message) return;
-    
-    // Check if API key is set
-    if (!state.apiKey) {
-        openSettingsModal();
-        addMessageToChat('system', 'Please set up your Gemini API key to use CTFBot.');
-        return;
-    }
-    
-    // Add user message to chat
-    addMessageToChat('user', message);
-    
-    // Clear input field and reset height
-    elements.messageInput.value = '';
-    adjustTextareaHeight();
-    
-    // Disable send button and show loading indicator
-    setProcessingState(true);
-    
-    // Ensure API responds to text input even when pytorch is directionally sensitive
-    message = message.replaceAll('dmac', 'dmcc');
-
+// Send message to the Gemini API - improved error handling and retry logic
+async function sendToGemini(prompt) {
     try {
-        // Format query based on assistance type
-        let formattedPrompt = formatQueryForAssistanceType(message, assistanceType);
-        
-        // Send to Gemini API
-        const response = await sendToGemini(formattedPrompt);
-        
-        // Add response to chat
-        if (response) {
-            addMessageToChat('bot', response);
-        } else {
-            throw new Error("Failed to get a response from Gemini API");
+        // Validate API key format before making request
+        if (!state.apiKey || !/^[A-Za-z0-9-_]{39}$/.test(state.apiKey)) {
+            throw new Error('Invalid API key format');
         }
+
+        // Construct the full context with chat history and system prompt
+        const fullContext = constructPromptWithContext(prompt);
+        
+        const response = await fetch(`${API_URL}?key=${state.apiKey}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{ text: fullContext }]
+                }],
+                generationConfig: {
+                    temperature: 0.7,
+                    topK: 40,
+                    topP: 0.95,
+                    maxOutputTokens: 8192,
+                }
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error?.message || `API Error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.error) {
+            updateApiStatus(false, data.error.message);
+            throw new Error(data.error.message);
+        }
+        
+        // Verify we have a valid response
+        if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
+            throw new Error("Invalid response format from API");
+        }
+        
+        updateApiStatus(true);
+        return data.candidates[0].content.parts[0].text;
+        
     } catch (error) {
-        console.error('Error:', error);
-        addMessageToChat('system', `Error: ${error.message || 'Failed to process your request'}`);
-    } finally {
-        // Re-enable send button and hide loading indicator
-        setProcessingState(false);
+        console.error('API Error:', error);
+        updateApiStatus(false, error.message);
+        
+        // Show API key notice if the error is related to authentication
+        if (error.message.includes('API key') || error.message.includes('authentication')) {
+            elements.apiKeyNotice.style.display = 'flex';
+        }
+        
+        throw error;
     }
+}
+
+// Improved context construction
+function constructPromptWithContext(userPrompt) {
+    // Start with system prompt
+    let fullPrompt = `${DEFAULT_SYSTEM_PROMPT}\n\n`;
+    
+    // Add relevant context
+    if (state.currentContext) {
+        fullPrompt += `Current context:\n${state.currentContext}\n\n`;
+    }
+    
+    // Add recent chat history (limit to last few messages for context)
+    const recentHistory = state.chatHistory.slice(-5);
+    if (recentHistory.length > 0) {
+        fullPrompt += "Recent conversation:\n";
+        recentHistory.forEach(msg => {
+            const role = msg.type === 'user' ? 'User' : 'CTFBot';
+            fullPrompt += `${role}: ${msg.content}\n`;
+        });
+        fullPrompt += "\n";
+    }
+    
+    // Add current user message
+    fullPrompt += `User: ${userPrompt}\n\nCTFBot:`;
+    
+    return fullPrompt;
 }
 
 // Format the query based on assistance type
@@ -242,7 +281,10 @@ async function sendToGemini(prompt) {
         }
     } catch (error) {
         console.error('API Error:', error);
-        updateApiStatus(false, error.message);
+        updateApiStatus(false, error);
+        if (error.message.includes('API key') || error.message.includes('authentication')) {
+            elements.apiKeyNotice.style.display = 'flex';
+        }
         throw error;
     }
 }
@@ -348,6 +390,31 @@ async function checkApiStatus() {
             elements.apiKeyNotice.style.display = 'none';
         }
     } catch (error) {
+        updateApiStatus(false, error.message);
+        elements.apiKeyNotice.style.display = 'flex';
+    }
+}
+
+// Improved API status check
+async function checkApiKeyStatus() {
+    try {
+        if (!state.apiKey || !/^[A-Za-z0-9-_]{39}$/.test(state.apiKey)) {
+            throw new Error('Invalid API key format');
+        }
+
+        const testURL = `${API_BASE_URL}/models/${MODEL_NAME}?key=${state.apiKey}`;
+        const response = await fetch(testURL);
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error?.message || `API Error: ${response.status}`);
+        }
+
+        updateApiStatus(true);
+        elements.apiKeyNotice.style.display = 'none';
+        
+    } catch (error) {
+        console.error('API Status Check Error:', error);
         updateApiStatus(false, error.message);
         elements.apiKeyNotice.style.display = 'flex';
     }
