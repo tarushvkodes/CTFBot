@@ -1035,3 +1035,30 @@ input:checked + .slider:before {
 .model-info {
     display: none;
 }
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .nav-left {
+        min-width: auto;
+        padding-left: 0;
+    }
+    
+    .nav-right {
+        padding-right: 0;
+    }
+    
+    .logo-container {
+        position: static;
+        transform: none;
+        pointer-events: auto;
+        margin: 0 1rem;
+    }
+    
+    header {
+        padding: 0 0.75rem;
+    }
+    
+    #new-chat-btn span {
+        display: none;
+    }
+}
