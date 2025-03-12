@@ -48,7 +48,14 @@ const elements = {
     themeButtons: document.querySelectorAll('.theme-btn'),
     
     // Theme toggle
-    themeToggle: document.getElementById('theme-toggle')
+    themeToggle: document.getElementById('theme-toggle'),
+    
+    // Chat history elements
+    historyMenuBtn: document.getElementById('history-menu-btn'),
+    chatHistorySidebar: document.getElementById('chat-history-sidebar'),
+    closeHistoryBtn: document.getElementById('close-history-btn'),
+    chatHistoryList: document.getElementById('chat-history-list'),
+    sidebarOverlay: document.createElement('div')
 };
 
 // State management
@@ -81,6 +88,9 @@ function init() {
     
     // Set history toggle
     elements.historyToggle.checked = state.saveHistory;
+    
+    // Initialize chat history list
+    updateChatHistoryList();
 }
 
 // Check if API key is set and show/hide notice
@@ -164,6 +174,15 @@ function setupEventListeners() {
         });
     });
     
+    // Chat history sidebar toggle
+    elements.historyMenuBtn.addEventListener('click', toggleChatHistory);
+    elements.closeHistoryBtn.addEventListener('click', toggleChatHistory);
+    
+    // Create and setup overlay
+    elements.sidebarOverlay.classList.add('sidebar-overlay');
+    document.body.appendChild(elements.sidebarOverlay);
+    elements.sidebarOverlay.addEventListener('click', toggleChatHistory);
+        
     // Close modal when clicking outside
     window.addEventListener('click', (e) => {
         if (e.target === elements.settingsModal) {
@@ -175,25 +194,26 @@ function setupEventListeners() {
 // Start a new chat
 function startNewChat() {
     // Clear the chat interface
-    while (elements.chatMessages.children.length > 0) {
-        // Keep only the welcome screen and typing indicator
-        if (elements.chatMessages.firstChild.id === 'welcome-screen' || 
-            elements.chatMessages.firstChild.id === 'typing-indicator') {
-            break;
-        }
+    while (elements.chatMessages.firstChild) {
         elements.chatMessages.removeChild(elements.chatMessages.firstChild);
     }
     
-    // Show welcome screen if it exists
-    if (elements.welcomeScreen) {
-        elements.welcomeScreen.style.display = 'flex';
-    }
+    // Show welcome screen
+    elements.welcomeScreen.style.display = 'flex';
     
-    // Clear chat history from memory (but keep in localStorage if enabled)
+    // Clear chat history from memory
     state.chatHistory = [];
     state.uploadedFiles = [];
     
-    // Show initial message after a short delay
+    // Save empty history if history saving is enabled
+    if (state.saveHistory) {
+        saveChatHistory();
+    }
+    
+     // Update the chat history sidebar
+     updateChatHistoryList();
+
+    // Add initial message
     setTimeout(() => {
         if (elements.chatMessages.children.length <= 2) { // Only welcome screen and typing indicator
             addMessageToChat('system', 'Hello! I\'m CTFBot, your Capture The Flag assistant. Describe your challenge or upload files to get started.');
@@ -413,6 +433,11 @@ function addMessageToChat(type, content) {
     if (state.saveHistory) {
         state.chatHistory.push({ type, content });
         saveChatHistory();
+    }
+    
+    // Update the chat history list if saving history
+    if (elements.saveHistory) {
+        updateChatHistoryList();
     }
 }
 
@@ -669,3 +694,136 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
 
 // Initialize the application when DOM is loaded
 document.addEventListener('DOMContentLoaded', init);
+
+// Toggle chat history sidebar
+function toggleChatHistory() {
+    const isVisible = elements.chatHistorySidebar.classList.contains('show');
+    elements.chatHistorySidebar.classList.toggle('show');
+    elements.sidebarOverlay.classList.toggle('show');
+    
+    // Update aria-expanded attribute for accessibility
+    elements.historyMenuBtn.setAttribute('aria-expanded', !isVisible);
+}
+
+// New chat button
+
+// Add new function to update chat history list
+function updateChatHistoryList() {
+    // Clear existing history list
+    elements.chatHistoryList.innerHTML = '';
+    
+    if (state.chatHistory.length === 0) {
+        const emptyHistory = document.createElement('div');
+        emptyHistory.classList.add('empty-history');
+        emptyHistory.textContent = 'No chat history yet';
+        elements.chatHistoryList.appendChild(emptyHistory);
+        return;
+    }
+    
+    // Group messages by conversation
+    let conversations = [];
+    let currentConversation = [];
+    
+    state.chatHistory.forEach(msg => {
+        currentConversation.push(msg);
+        if (msg.type === 'system' && msg.content.includes('Hello! I\'m CTFBot')) {
+            conversations.push(currentConversation);
+            currentConversation = [];
+        }
+    });
+    
+    // Add remaining messages as current conversation
+    if (currentConversation.length > 0) {
+        conversations.push(currentConversation);
+    }
+    
+    // Create chat history items
+    conversations.forEach((conversation, index) => {
+        const chatItem = document.createElement('div');
+        chatItem.classList.add('chat-history-item');
+        
+        // Find first user message for title
+        const firstUserMsg = conversation.find(msg => msg.type === 'user');
+        const title = firstUserMsg ? 
+            (firstUserMsg.content.length > 30 ? 
+                firstUserMsg.content.substring(0, 30) + '...' : 
+                firstUserMsg.content) :
+            'New Conversation';
+        
+        const date = new Date().toLocaleDateString();
+        
+        chatItem.innerHTML = `
+            <div class="chat-title">${title}</div>
+            <div class="chat-date">${date}</div>
+            <button class="delete-chat-btn" aria-label="Delete conversation">×</button>
+        `;
+        
+        // Add click handler to load conversation
+        chatItem.addEventListener('click', (e) => {
+            if (e.target.classList.contains('delete-chat-btn')) {
+                e.stopPropagation();
+                deleteConversation(index);
+            } else {
+                loadConversation(conversation);
+            }
+        });
+        
+        elements.chatHistoryList.appendChild(chatItem);
+    });
+}
+
+/**
+ * Load a conversation
+ * @param {object} conversation Previous conversation
+ */
+function loadConversation(conversation) {
+    // Clear current chat
+    while (elements.chatMessages.firstChild) {
+        elements.chatMessages.removeChild(elements.chatMessages.firstChild);
+    }
+    
+    // Hide welcome screen
+    elements.welcomeScreen.style.display = 'none';
+    
+    // Load conversation messages
+    conversation.forEach(msg => {
+        addMessageToChat(msg.type, msg.content);
+    });
+    
+    // Close sidebar on mobile
+    if (window.innerWidth <= 768) {
+        toggleChatHistory();
+    }
+}
+
+// Delete conversation
+function deleteConversation(index) {
+    const conversations = [];
+    let currentConversation = [];
+    
+    state.chatHistory.forEach(msg => {
+        currentConversation.push(msg);
+        if (msg.type === 'system' && msg.content.includes('Hello! I\'m CTFBot')) {
+            conversations.push(currentConversation);
+            currentConversation = [];
+        }
+    });
+    
+    if (currentConversation.length > 0) {
+        conversations.push(currentConversation);
+    }
+    
+    // Remove the conversation
+    conversations.splice(index, 1);
+    
+    // Flatten conversations back into chat history
+    state.chatHistory = conversations.flat();
+    
+    // Save updated history
+    if (state.saveHistory) {
+        saveChatHistory();
+    }
+    
+    // Updated UI
+    updateChatHistoryList();
+}
