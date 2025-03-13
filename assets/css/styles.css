@@ -3,10 +3,13 @@
     --color-primary: #2563eb;
     --color-primary-hover: #1d4ed8;
     --color-secondary: #4f46e5;
+    --color-secondary-rgb: 79, 70, 229;
     --color-success: #10b981;
     --color-error: #ef4444;
     --color-warning: #f59e0b;
     --color-info: #3b82f6;
+    --color-accent: #8b5cf6;
+    --color-text-accent: #ffffff;
 
     /* Light Theme Colors */
     --color-bg-primary: #ffffff;
@@ -336,52 +339,63 @@ button {
     margin: 1.5rem 0;
     border-radius: 0.5rem;
     overflow: hidden;
-    background-color: var(--color-bg-tertiary);
 }
 
-.code-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.5rem 1rem;
-    background-color: rgba(0, 0, 0, 0.1);
-    border-bottom: 1px solid var(--color-border);
+.cube-container {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  perspective: 1000px;
+  margin: 30px 0;
+  height: 200px;
 }
 
-.code-language {
-    font-size: 0.875rem;
-    color: var(--color-text-secondary);
-    text-transform: uppercase;
+.cube {
+  width: 100px;
+  height: 100px;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 1s ease;
+  transform: rotateX(-20deg) rotateY(-20deg);
+  cursor: grab;
 }
 
-.copy-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.25rem 0.75rem;
-    border-radius: 0.25rem;
-    background-color: var(--color-bg-primary);
-    border: 1px solid var(--color-border);
-    color: var(--color-text-secondary);
-    font-size: 0.875rem;
-    transition: all var(--transition-quick);
+.cube:active {
+  cursor: grabbing;
 }
 
-.copy-btn:hover {
-    background-color: var(--color-bg-secondary);
-    color: var(--color-text-primary);
+.cube-face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: monospace;
+  font-size: 10px;
+  line-height: 1;
+  white-space: pre;
+  background-color: rgba(var(--color-secondary-rgb), 0.7);
+  border: 1px solid var(--color-accent);
+  color: var(--color-text-accent);
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: 5px;
 }
 
-.copy-btn.success {
-    background-color: var(--color-success);
-    color: white;
-    border-color: var(--color-success);
-}
+.front  { transform: translateZ(50px); }
+.back   { transform: rotateY(180deg) translateZ(50px); }
+.top    { transform: rotateX(90deg) translateZ(50px); }
+.bottom { transform: rotateX(-90deg) translateZ(50px); }
+.left   { transform: rotateY(-90deg) translateZ(50px); }
+.right  { transform: rotateY(90deg) translateZ(50px); }
 
-.copy-btn.error {
-    background-color: var(--color-error);
-    color: white;
-    border-color: var(--color-error);
+@media (prefers-reduced-motion: reduce) {
+  .cube {
+    transition: none;
+    animation: none;
+  }
 }
 
 /* Improved scrollbar styles */
@@ -485,149 +499,6 @@ button {
 
 .option-select {
     padding: 0.5rem;
-    border-radius: 0.5rem;
-    border: 1px solid var(--color-border);
-    background-color: var(--color-bg-primary);
-    color: var(--color-text-primary);
-}
-
-.message-input-wrapper {
-    display: flex;
-    gap: 0.5rem;
-    align-items: flex-end;
-}
-
-#message-input {
-    flex: 1;
-    min-height: 44px;
-    max-height: 150px;
-    padding: 0.75rem;
-    border: 1px solid var(--color-border);
-    border-radius: 0.5rem;
-    background-color: var(--color-bg-primary);
-    color: var(--color-text-primary);
-    resize: none;
-    transition: border-color var(--transition-quick);
-}
-
-#message-input:focus {
-    outline: none;
-    border-color: var(--color-primary);
-}
-
-#send-btn {
-    padding: 0.75rem;
-    background-color: var(--color-primary);
-    color: white;
-    border: none;
-    border-radius: 0.5rem;
-    cursor: pointer;
-    transition: background-color var(--transition-quick), transform var(--transition-quick);
-}
-
-#send-btn:hover {
-    background-color: var(--color-primary-hover);
-    transform: scale(1.05);
-}
-
-#send-btn:disabled {
-    background-color: var(--color-bg-tertiary);
-    cursor: not-allowed;
-    transform: none;
-}
-
-/* Typing Indicator */
-.typing-indicator {
-    display: flex;
-    gap: 0.25rem;
-    padding: 0.5rem;
-}
-
-.typing-indicator span {
-    width: 0.5rem;
-    height: 0.5rem;
-    background-color: var(--color-text-secondary);
-    border-radius: 50%;
-    animation: typing 1s infinite;
-}
-
-.typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
-.typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
-
-@keyframes typing {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-4px); }
-}
-
-/* Settings Modal */
-.modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: none;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-    backdrop-filter: blur(4px);
-}
-
-.modal.show {
-    display: flex;
-    animation: modalFade 0.3s ease forwards;
-}
-
-@keyframes modalFade {
-    from { opacity: 0; }
-    to { opacity: 1; }
-}
-
-.modal-content {
-    background-color: var(--color-bg-primary);
-    border-radius: 1rem;
-    padding: 1.5rem;
-    max-width: 500px;
-    width: 90%;
-    max-height: 90vh;
-    overflow-y: auto;
-    transform: translateY(20px);
-    animation: modalSlide 0.3s ease forwards;
-}
-
-@keyframes modalSlide {
-    to { transform: translateY(0); }
-}
-
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-}
-
-.close-btn {
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    cursor: pointer;
-    color: var(--color-text-secondary);
-}
-
-.settings-group {
-    margin-bottom: 1.5rem;
-}
-
-.settings-group label {
-    display: block;
-    margin-bottom: 0.5rem;
-    color: var(--color-text-secondary);
-}
-
-.theme-options {
-    display: flex;
-    gap: 0.5rem;
 }
 
 .theme-btn {
@@ -637,13 +508,6 @@ button {
     background-color: var(--color-bg-secondary);
     color: var(--color-text-primary);
     cursor: pointer;
-    transition: all var(--transition-quick);
-}
-
-.theme-btn.active {
-    background-color: var(--color-primary);
-    color: white;
-    border-color: var(--color-primary);
 }
 
 /* API Status */

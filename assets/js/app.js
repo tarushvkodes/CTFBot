@@ -79,6 +79,129 @@ function startNewChat() {
     }
 }
 
+// Interactive Cube Implementation
+const cubeElements = {
+    cube: document.querySelector('.cube'),
+    faces: document.querySelectorAll('.cube-face')
+};
+
+// Create CTFBot ASCII Logo
+const ctfbotAsciiLogo = `
+ ██████╗████████╗███████╗██████╗  ██████╗ ████████╗
+██╔════╝╚══██╔══╝██╔════╝██╔══██╗██╔═══██╗╚══██╔══╝
+██║        ██║   █████╗  ██████╔╝██║   ██║   ██║   
+██║        ██║   ██╔══╝  ██╔══██╗██║   ██║   ██║   
+╚██████╗   ██║   ██║     ██████╔╝╚██████╔╝   ██║   
+ ╚═════╝   ╚═╝   ╚═╝     ╚═════╝  ╚═════╝    ╚═╝   
+`;
+
+// Initialize the cube
+function initCube() {
+    if (!cubeElements.cube) return;
+    
+    // Apply ASCII art to all faces
+    cubeElements.faces.forEach(face => {
+        face.textContent = ctfbotAsciiLogo;
+    });
+    
+    // Set up cube rotation variables
+    let isDragging = false;
+    let previousMousePosition = {
+        x: 0,
+        y: 0
+    };
+    let rotationSpeed = {
+        x: 0.2,
+        y: 0.2
+    };
+    let cubeRotation = {
+        x: -20,
+        y: -20
+    };
+    
+    // Add auto-rotation animation
+    function autoRotate() {
+        if (!isDragging) {
+            cubeRotation.x += rotationSpeed.x;
+            cubeRotation.y += rotationSpeed.y;
+            updateCubeRotation();
+        }
+        requestAnimationFrame(autoRotate);
+    }
+    
+    // Start auto-rotation if user hasn't disabled reduced motion
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        autoRotate();
+    }
+    
+    // Update cube rotation based on current rotation values
+    function updateCubeRotation() {
+        cubeElements.cube.style.transform = `rotateX(${cubeRotation.x}deg) rotateY(${cubeRotation.y}deg)`;
+    }
+    
+    // Mouse event handlers
+    cubeElements.cube.addEventListener('mousedown', startDrag);
+    document.addEventListener('mousemove', drag);
+    document.addEventListener('mouseup', stopDrag);
+    
+    // Touch event handlers for mobile
+    cubeElements.cube.addEventListener('touchstart', e => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        startDrag({
+            clientX: touch.clientX,
+            clientY: touch.clientY
+        });
+    });
+    
+    document.addEventListener('touchmove', e => {
+        if (isDragging) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            drag({
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+        }
+    });
+    
+    document.addEventListener('touchend', stopDrag);
+    
+    // Start dragging
+    function startDrag(e) {
+        isDragging = true;
+        previousMousePosition = {
+            x: e.clientX,
+            y: e.clientY
+        };
+        cubeElements.cube.style.transition = 'none';
+    }
+    
+    // Handle dragging motion
+    function drag(e) {
+        if (isDragging) {
+            const dx = e.clientX - previousMousePosition.x;
+            const dy = e.clientY - previousMousePosition.y;
+            
+            cubeRotation.y += dx * 0.5;
+            cubeRotation.x -= dy * 0.5;
+            
+            updateCubeRotation();
+            
+            previousMousePosition = {
+                x: e.clientX,
+                y: e.clientY
+            };
+        }
+    }
+    
+    // Stop dragging
+    function stopDrag() {
+        isDragging = false;
+        cubeElements.cube.style.transition = 'transform 1s ease';
+    }
+}
+
 // Initialize the application
 // App loading state management
 const loadingStates = {
@@ -1032,4 +1155,7 @@ if (elements.modelSelect) {
 }
 
 // Initialize the app when the DOM is loaded
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => {
+    init();
+    initCube();
+});
