@@ -30,7 +30,9 @@ const state = {
     chatHistory: [],
     currentContext: '',
     historyPage: 0, // Current page of history being displayed
-    totalHistoryPages: 0 // Total number of history pages
+    totalHistoryPages: 0, // Total number of history pages
+    availableModels: [], // Available Gemini models
+    selectedModel: localStorage.getItem('ctfbot_selected_model') || MODEL_NAME // Currently selected model
 };
 
 // DOM Elements
@@ -50,7 +52,8 @@ const elements = {
     chatHistoryList: document.getElementById('chat-history-list'),
     sidebarOverlay: document.querySelector('.sidebar-overlay'),
     assistanceType: document.getElementById('assistance-type'),
-    themeButtons: document.querySelectorAll('.theme-btn')
+    themeButtons: document.querySelectorAll('.theme-btn'),
+    modelSelect: document.getElementById('model-select') // Reference to model select dropdown
 };
 
 // Add new function to handle new chat
@@ -441,6 +444,9 @@ async function checkApiKeyStatus() {
         if (elements.apiKeyNotice) {
             elements.apiKeyNotice.style.display = 'none';
         }
+
+        // Fetch available models if API key to valid
+        await fetchAvailableModels();
         
         return true;
         
@@ -448,6 +454,46 @@ async function checkApiKeyStatus() {
         updateApiStatus(false, error.message);
         return false;
     }
+}
+
+// Fetch available models from the Gemini API
+async function fetchAvailableModels() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/models?key=${state.apiKey}`);
+        
+        if (!response.ok) {
+            console.error('Failed to fetch models');
+            return;
+        }
+        
+        const data = await response.json();
+        
+        if (data.models && Array.isArray(data.models)) {
+            // Filter for Gemini models only and format them
+            state.availableModels = data.models
+                .filter(model => model.name.includes('gemini'))
+                .map(model => ({
+                    id: model.name.split('/').pop(),
+                    name: formatModelName(model.name),
+                    description: model.description || ''
+                }));
+            
+            // Update the model select dropdown
+            updateModelSelect();
+        }
+    } catch (error) {
+        console.error('Error fetching models:', error);
+    }
+}
+
+// Format model name for display
+function formatModelName(fullName) {
+    const name = fullName.split('/').pop();
+    // Convert gemini-pro to Gemini Pro
+    return name
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
 }
 
 // Setup event listeners
@@ -670,12 +716,15 @@ async function sendToGemini(prompt) {
 
         // Construct the full context with chat history and system prompt
         const fullContext = constructPromptWithContext(prompt);
-        const streamingUrl = `${API_BASE_URL}/models/${MODEL_NAME}:streamGenerateContent`;
+        
+        // Use the selected model instead of hardcoded MODEL_NAME
+        const modelToUse = state.selectedModel;
+        const streamingUrl = `${API_BASE_URL}/models/${modelToUse}:streamGenerateContent`;
         
         // Create message container ahead of time
         const messageContainer = addEmptyMessage('assistant');
 
-        console.log('Sending request to API:', fullContext); // Debug log
+        console.log(`Sending request to API using model ${modelToUse}:`, fullContext); // Debug log
         const response = await fetch(`${streamingUrl}?key=${state.apiKey}`, {
             method: 'POST',
             headers: {
@@ -1014,6 +1063,20 @@ async function saveSettings() {
             await checkApiKeyStatus();
         }
         
+        // Check if model changed
+        if (elements.modelSelect) {
+            const selectedModel = elements.modelSelect.value;
+            if (selectedModel !== state.selectedModel) {
+                state.selectedModel = selectedModel;
+                localStorage.setItem('ctfbot_selected_model', selectedModel);
+                settingsChanged = true;
+                
+                // Update the API URL for the new model
+                updateApiUrl();
+                toast.show(`Model changed to ${selectedModel}`, 'info');
+            }
+        }
+        
         // Check if history setting changed
         if (elements.historyToggle.checked !== state.saveHistory) {
             state.saveHistory = elements.historyToggle.checked;
@@ -1111,7 +1174,7 @@ function addMessageToChat(type, content, shouldScroll = true) {
             });
         });
     }
-    
+
     // Update pagination if needed
     if (state.chatHistory.length % MESSAGES_PER_PAGE === 0) {
         state.totalHistoryPages = Math.ceil(state.chatHistory.length / MESSAGES_PER_PAGE);
