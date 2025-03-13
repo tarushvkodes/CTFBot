@@ -704,3 +704,38 @@ button {
 .hidden {
     display: none !important;
 }
+
+/* Pagination Controls */
+.pagination-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    margin: 0.5rem 0;
+    border-top: 1px solid var(--color-border);
+}
+
+.pagination-controls button {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    background: var(--color-bg-secondary);
+    color: var(--color-text);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.pagination-controls button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.pagination-controls button:not(:disabled):hover {
+    background: var(--color-bg-hover);
+}
+
+.pagination-controls span {
+    color: var(--color-text-secondary);
+    font-size: 0.9rem;
+}

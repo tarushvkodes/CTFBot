@@ -7,6 +7,8 @@ const API_BASE_URL = "https://generativelanguage.googleapis.com/v1";
 const MODEL_NAME = "gemini-pro";
 const API_URL = `${API_BASE_URL}/models/${MODEL_NAME}:generateContent`;
 const MAX_HISTORY_LENGTH = 20; // Maximum number of messages to keep in history
+const MAX_CONVERSATIONS = 50; // Maximum number of conversations to store
+const MESSAGES_PER_PAGE = 50; // Number of messages to load at once
 const DEFAULT_SYSTEM_PROMPT = `You are CTFBot, an expert AI assistant specializing in Capture The Flag (CTF) competitions and cybersecurity challenges. Your purpose is to help users analyze challenges, provide hints without giving away complete solutions unless asked, and explain security concepts.
 Focus on these areas:
 - Challenge analysis: Determine the likely category and potential techniques to solve
@@ -27,7 +29,9 @@ const state = {
     saveHistory: localStorage.getItem('ctfbot_save_history') !== 'false',
     isProcessing: false,
     chatHistory: [],
-    currentContext: ''
+    currentContext: '',
+    historyPage: 0, // Current page of history being displayed
+    totalHistoryPages: 0 // Total number of history pages
 };
 
 // DOM Elements
@@ -696,34 +700,151 @@ async function saveSettings() {
     }
 }
 
-// Enhanced handling of chat history
-// Save chat history to localStorage
-function saveChatHistory() {
-    if (state.saveHistory) {
-        try {
-            localStorage.setItem('ctfbot_chat_history', JSON.stringify(state.chatHistory));
-        } catch (e) {
-            console.error('Error saving chat history:', e);
-        }
-    }
-}
-
-// Load chat history from localStorage
+// Add new functions for chat history pagination
 function loadChatHistory() {
     if (state.saveHistory) {
         try {
             const savedHistory = localStorage.getItem('ctfbot_chat_history');
             if (savedHistory) {
                 state.chatHistory = JSON.parse(savedHistory);
+                state.totalHistoryPages = Math.ceil(state.chatHistory.length / MESSAGES_PER_PAGE);
                 
-                // Display loaded messages in the chat
-                state.chatHistory.forEach(msg => {
-                    addMessageToChat(msg.type, msg.content);
-                });
+                // Only load the most recent page initially
+                loadHistoryPage(state.totalHistoryPages - 1);
             }
         } catch (e) {
             console.error('Error loading chat history:', e);
         }
+    }
+}
+
+function loadHistoryPage(pageNumber) {
+    // Clear current chat
+    elements.chatMessages.innerHTML = '';
+    
+    const start = pageNumber * MESSAGES_PER_PAGE;
+    const end = Math.min(start + MESSAGES_PER_PAGE, state.chatHistory.length);
+    
+    // Load only messages for current page
+    const pageMessages = state.chatHistory.slice(start, end);
+    pageMessages.forEach(msg => {
+        addMessageToChat(msg.type, msg.content, false); // false = don't scroll
+    });
+    
+    state.historyPage = pageNumber;
+    updatePaginationControls();
+}
+
+function updatePaginationControls() {
+    const paginationContainer = document.getElementById('pagination-controls');
+    if (!paginationContainer) return;
+    
+    paginationContainer.innerHTML = '';
+    
+    if (state.totalHistoryPages <= 1) return;
+    
+    const prevBtn = document.createElement('button');
+    prevBtn.textContent = '← Previous';
+    prevBtn.disabled = state.historyPage === 0;
+    prevBtn.onclick = () => loadHistoryPage(state.historyPage - 1);
+    
+    const nextBtn = document.createElement('button');
+    nextBtn.textContent = 'Next →';
+    nextBtn.disabled = state.historyPage === state.totalHistoryPages - 1;
+    nextBtn.onclick = () => loadHistoryPage(state.historyPage + 1);
+    
+    const pageInfo = document.createElement('span');
+    pageInfo.textContent = `Page ${state.historyPage + 1} of ${state.totalHistoryPages}`;
+    
+    paginationContainer.append(prevBtn, pageInfo, nextBtn);
+}
+
+// Modify addMessageToChat to support pagination
+function addMessageToChat(type, content, shouldScroll = true) {
+    const messageElement = addEmptyMessage(type);
+    const contentElement = messageElement.querySelector('.message-content');
+    const processedContent = processMessageContent(content);
+    contentElement.innerHTML = processedContent;
+    
+    if (shouldScroll) {
+        requestAnimationFrame(() => {
+            elements.chatMessages.scrollTo({
+                top: elements.chatMessages.scrollHeight,
+                behavior: 'smooth'
+            });
+        });
+    }
+    
+    // Update pagination if needed
+    if (state.chatHistory.length % MESSAGES_PER_PAGE === 0) {
+        state.totalHistoryPages = Math.ceil(state.chatHistory.length / MESSAGES_PER_PAGE);
+        updatePaginationControls();
+    }
+}
+
+// Implement size limits in saveChatHistory
+function saveChatHistory() {
+    if (state.saveHistory) {
+        try {
+            // Trim history if it exceeds maximum length
+            if (state.chatHistory.length > MAX_HISTORY_LENGTH) {
+                state.chatHistory = state.chatHistory.slice(-MAX_HISTORY_LENGTH);
+            }
+            
+            // Remove oldest conversations if total conversations exceeds limit
+            const conversations = [];
+            let currentConversation = [];
+            
+            state.chatHistory.forEach(msg => {
+                currentConversation.push(msg);
+                if (msg.type === 'system' && msg.content.includes('Hello! I\'m CTFBot')) {
+                    conversations.push(currentConversation);
+                    currentConversation = [];
+                }
+            });
+            
+            if (currentConversation.length > 0) {
+                conversations.push(currentConversation);
+            }
+            
+            while (conversations.length > MAX_CONVERSATIONS) {
+                conversations.shift(); // Remove oldest conversation
+            }
+            
+            state.chatHistory = conversations.flat();
+            
+            localStorage.setItem('ctfbot_chat_history', JSON.stringify(state.chatHistory));
+        } catch (e) {
+            console.error('Error saving chat history:', e);
+            // If storage quota exceeded, remove older items
+            if (e.name === 'QuotaExceededError') {
+                clearOldestConversation();
+                saveChatHistory(); // Try saving again
+            }
+        }
+    }
+}
+
+// Add function to clear oldest conversation when storage is full
+function clearOldestConversation() {
+    const conversations = [];
+    let currentConversation = [];
+    
+    state.chatHistory.forEach(msg => {
+        currentConversation.push(msg);
+        if (msg.type === 'system' && msg.content.includes('Hello! I\'m CTFBot')) {
+            conversations.push(currentConversation);
+            currentConversation = [];
+        }
+    });
+    
+    if (currentConversation.length > 0) {
+        conversations.push(currentConversation);
+    }
+    
+    if (conversations.length > 0) {
+        conversations.shift(); // Remove oldest conversation
+        state.chatHistory = conversations.flat();
     }
 }
 
