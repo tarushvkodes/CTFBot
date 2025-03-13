@@ -3,7 +3,7 @@
 
 // Constants and configuration
 const DEFAULT_API_KEY = ""; // No default API key - users must provide their own
-const API_BASE_URL = "https://generativelanguage.googleapis.com/v1";
+const API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const MODEL_NAME = "gemini-pro";
 const API_URL = `${API_BASE_URL}/models/${MODEL_NAME}:generateContent`;
 const MAX_HISTORY_LENGTH = 20; // Maximum number of messages to keep in history
@@ -1418,7 +1418,7 @@ function deleteConversation(index) {
 // Select the model used for API requests
 async function updateApiUrl() {
     const model = state.selectedModel;
-    state.currentApiUrl = `${API_BASE_URL}/models/${model}:generateContent`;
+    state.currentApiUrl = `${API_BASE_URL}/models/${model}:streamGenerateContent`;
 }
 
 // Update model select dropdown
