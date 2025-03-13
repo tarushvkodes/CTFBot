@@ -55,6 +55,9 @@ async function init() {
     // Apply theme immediately before any other operations
     applyTheme();
     
+    // Add global window function for code copying
+    window.copyCode = copyCode;
+    
     // Setup event listeners
     setupEventListeners();
     
@@ -74,7 +77,15 @@ async function init() {
         }, 0);
     }
     
+    // Set initial input height
     adjustTextareaHeight();
+    
+    // Add input field event listeners
+    elements.messageInput.addEventListener('input', () => {
+        adjustTextareaHeight();
+        // Enable/disable send button based on content
+        elements.sendBtn.disabled = !elements.messageInput.value.trim();
+    });
 }
 
 // Setup event listeners
@@ -434,22 +445,44 @@ function addMessageToChat(type, content) {
 
 // Process message content for formatting
 function processMessageContent(content) {
+    if (!content) return '';
+    
     // Escape HTML to prevent XSS
     let processed = escapeHtml(content);
     
-    // Structure code blocks (```code aiming```)
-    processed = processed.replace(/```([\s\S]*?```)/g, '$C0$1$C1');
-    
-    // Escape bracketed text
-    processed = processed.replace(/\[(.*?)\]/g, '<s>$1</s>');
-    
-    // Convert URLs to clickable links
-    processed = processed.replace(/^(http:\/\/|https:\/\/|mailto:|mailto:)(\S+)\b/g, (match) => {
-        return '<a href="' + match + '" target=\"_blank\" rel=\"noopener noreferrer\">' + match + '</a>';
+    // Handle code blocks
+    processed = processed.replace(/```([\s\S]*?)```/g, (match, code) => {
+        return `<div class="code-block"><pre>${code.trim()}</pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>`;
     });
     
+    // Handle inline code
+    processed = processed.replace(/`([^`]+)`/g, '<code>$1</code>');
+    
+    // Convert URLs to clickable links
+    processed = processed.replace(
+        /(https?:\/\/[^\s<]+[^<.,:;"')\]\s])/g,
+        '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+    );
+    
     // Process new lines
-    return processed.replace(/\r?\n|\r/g, '<br>');
+    return processed.replace(/\n/g, '<br>');
+}
+
+// Copy code to clipboard
+function copyCode(button) {
+    const codeBlock = button.previousElementSibling;
+    const code = codeBlock.textContent;
+    
+    navigator.clipboard.writeText(code).then(() => {
+        const originalText = button.textContent;
+        button.textContent = 'Copied!';
+        setTimeout(() => {
+            button.textContent = originalText;
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy code:', err);
+        button.textContent = 'Failed to copy';
+    });
 }
 
 // Escape HTML to prevent XSS
@@ -505,32 +538,38 @@ async function checkApiStatus() {
 async function checkApiKeyStatus() {
     try {
         if (!state.apiKey) {
-            updateApiStatus(false, 'API key required');
-            elements.apiKeyNotice.style.display = 'flex';
-            return;
+            throw new Error('API key required');
         }
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
 
         const testURL = `${API_BASE_URL}/models/${MODEL_NAME}?key=${state.apiKey}`;
-        const response = await fetch(testURL, { signal: controller.signal });
+        const response = await fetch(testURL, { 
+            signal: controller.signal,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
         clearTimeout(timeoutId);
         
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error?.message || `API Error: ${response.status}`);
-        }
-
-        updateApiStatus(true);
-        elements.apiKeyNotice.style.display = 'none';
+        const data = await response.json();
         
+        if (response.ok && !data.error) {
+            updateApiStatus(true);
+            elements.apiKeyNotice.style.display = 'none';
+            return true;
+        } else {
+            throw new Error(data.error?.message || 'API validation failed');
+        }
     } catch (error) {
         console.error('API Status Check Error:', error);
         const errorMessage = error.name === 'AbortError' ? 
-            'Connection timeout - please try again' : error.message;
+            'Connection timeout - please check your internet connection' : 
+            error.message;
         updateApiStatus(false, errorMessage);
         elements.apiKeyNotice.style.display = 'flex';
+        return false;
     }
 }
 
@@ -674,11 +713,23 @@ function clearChatHistory() {
     localStorage.removeItem('ctfbot_chat_history');
 }
 
-// Toggle chat history sidebar
+// Toggle chat history sidebar with improved handling
 function toggleChatHistory() {
     const isVisible = elements.chatHistorySidebar.classList.contains('show');
-    elements.chatHistorySidebar.classList.toggle('show');
-    elements.sidebarOverlay.classList.toggle('show');
+    
+    if (isVisible) {
+        elements.chatHistorySidebar.classList.remove('show');
+        elements.sidebarOverlay.classList.remove('show');
+        document.body.style.overflow = '';
+    } else {
+        elements.chatHistorySidebar.classList.add('show');
+        elements.sidebarOverlay.classList.add('show');
+        // Prevent background scrolling on mobile
+        document.body.style.overflow = 'hidden';
+        
+        // Update chat history list when opening
+        updateChatHistoryList();
+    }
 }
 
 // Add a new function to update chat history list
