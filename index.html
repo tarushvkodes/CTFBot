@@ -111,26 +111,62 @@
                     <!-- Chat history items will be added here dynamically -->
                 </div>
             </div>
-            <!-- API Key Notice - Only shown when needed -->
-            <div class="api-key-notice" id="api-key-notice" style="display: none;">
-                <div class="notice-icon">🔑</div>
-                <div class="notice-content">
-                    <h3>API Key Required</h3>
-                    <p>CTFBot requires a Gemini API key to function. Get your free API key from Google AI Studio.</p>
-                    <button id="setup-api-key" class="btn-primary">Set up API Key</button>
-                </div>
-            </div>
 
             <div class="chat-interface">
-                <section class="chat-container">
-                    <div class="chat-container">
-                        <div id="chat-messages"></div>
-                        <div id="pagination-controls" class="pagination-controls"></div>
-                        <div id="typing-indicator" style="display: none;">
-                            <div class="typing-dot"></div>
-                            <div class="typing-dot"></div>
-                            <div class="typing-dot"></div>
+                <!-- Welcome screen -->
+                <div class="welcome-screen" id="welcome-screen">
+                    <h2>Welcome to CTFBot</h2>
+                    <div class="model-badge">
+                        Powered by <strong>Google Gemini API</strong>
+                    </div>
+                    <p>Your AI assistant for Capture The Flag competitions</p>
+                    
+                    <div class="features-grid">
+                        <div class="feature-card">
+                            <div class="feature-icon">🧠</div>
+                            <h3>Challenge Analysis</h3>
+                            <p>Upload challenge files or descriptions for detailed analysis</p>
                         </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">💡</div>
+                            <h3>Smart Hints</h3>
+                            <p>Get contextual hints without spoiling the challenge</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">🛠️</div>
+                            <div class="feature-icon">🛠️</div>
+                            <h3>Tool Suggestions</h3>
+                            <p>Receive recommendations on the best tools for each challenge</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">📚</div>
+                            <h3>Knowledge Base</h3>
+                            <p>Access explanations of cybersecurity concepts relevant to your challenges</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- API Key Required - Only shown when needed -->
+                <div class="api-key-notice" id="api-key-notice" style="display: none;">
+                    <div class="notice-icon">🔑</div>
+                    <div class="notice-content">
+                        <h3>API Key Required</h3>
+                        <p>CTFBot requires a Gemini API key to function. Get your free API key from Google AI Studio.</p>
+                        <button id="setup-api-key" class="btn-primary">Set up API Key</button>
+                    </div>
+                </div>
+
+                <section class="chat-container">
+                    <div id="chat-messages">
+                        <!-- Messages will appear here -->
+                    </div>
+                    <div id="pagination-controls" class="pagination-controls">
+                        <!-- Pagination controls will be added here when needed -->
+                    </div>
+                    <div id="typing-indicator" style="display: none;">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
                     </div>
 
                     <!-- Moved the cube here, above the input -->
