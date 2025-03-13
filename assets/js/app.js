@@ -87,15 +87,18 @@ const cubeElements = {
     faces: document.querySelectorAll('.cube-face')
 };
 
-// Create CTFBot ASCII Logo
+// Create CTFBot ASCII Logo with GitHub-style pattern
 const ctfbotAsciiLogo = `
- ██████╗████████╗███████╗██████╗  ██████╗ ████████╗
-██╔════╝╚══██╔══╝██╔════╝██╔══██╗██╔═══██╗╚══██╔══╝
-██║        ██║   █████╗  ██████╔╝██║   ██║   ██║   
-██║        ██║   ██╔══╝  ██╔══██╗██║   ██║   ██║   
-╚██████╗   ██║   ██║     ██████╔╝╚██████╔╝   ██║   
- ╚═════╝   ╚═╝   ╚═╝     ╚═════╝  ╚═════╝    ╚═╝   
-`;
+.....::::::....:::::.
+....:::::::::.::::::.
+...:::::::::::::::::
+..::::::::::::::::::.
+.:::::::::CTF:::::::
+::::::::::BOT:::::::
+:::::::::::::::::::.
+.::::::::::::::::...
+..::::::::::::::....
+...::::::::::::.....</pre>`;
 
 // Initialize the cube
 function initCube() {
@@ -345,6 +348,12 @@ function openSettingsModal() {
 // Sets processing state to show/hide typing indicator
 function setProcessingState(isProcessing) {
     state.isProcessing = isProcessing;
+    
+    // Show/hide typing indicator and loading indicator
+    const loadingIndicator = document.getElementById('loading-indicator');
+    if (loadingIndicator) {
+        loadingIndicator.style.display = isProcessing ? 'flex' : 'none';
+    }
     
     // Show/hide typing indicator
     if (elements.typingIndicator) {
@@ -810,6 +819,12 @@ function updateMessageContent(container, text) {
     const content = container.querySelector('.message-content');
     const processedContent = processMessageContent(text);
     content.innerHTML = processedContent;
+
+    // Clear loading indicator
+    const loadingIndicator = document.getElementById('loading-indicator');
+    if (loadingIndicator) {
+        loadingIndicator.style.display = 'none';
+    }
     
     // Scroll to bottom smoothly
     requestAnimationFrame(() => {
