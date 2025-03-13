@@ -19,7 +19,6 @@ Focus on these areas:
 - Forensics: File analysis, steganography, network traffic analysis, memory forensics
 - OSINT: Open-source intelligence techniques and resources
 - Miscellaneous: Common CTF tricks and tools
-
 Whenever you're presented with challenge text or files, analyze and suggest possible approaches. For code, explain what it does and potential vulnerabilities.`;
 
 // State management
@@ -315,6 +314,122 @@ function updateLoadingState(state) {
 // Helper function for creating delays
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+// Open settings modal
+function openSettingsModal() {
+    if (!elements.settingsModal) return;
+    
+    // Populate current settings
+    elements.apiKeyInput.value = state.apiKey || '';
+    elements.historyToggle.checked = state.saveHistory;
+    
+    // Highlight the current theme button
+    if (elements.themeButtons) {
+        elements.themeButtons.forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-theme') === state.theme);
+        });
+    }
+    
+    // Show the modal
+    elements.settingsModal.classList.add('show');
+    
+    // Prevent background scrolling
+    document.body.style.overflow = 'hidden';
+    
+    // Focus on API key input for better UX
+    setTimeout(() => elements.apiKeyInput.focus(), 100);
+}
+
+// Close settings modal
+function closeSettingsModal() {
+    if (!elements.settingsModal) return;
+    
+    // Hide the modal
+    elements.settingsModal.classList.remove('show');
+    
+    // Restore background scrolling
+    document.body.style.overflow = '';
+}
+
+// Apply the current theme
+function applyTheme() {
+    const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    // Determine the theme to use
+    let themeToApply = state.theme;
+    if (state.theme === 'system') {
+        themeToApply = prefersDarkMode ? 'dark' : 'light';
+    }
+    
+    // Apply theme attributes
+    document.documentElement.setAttribute('data-theme', themeToApply);
+    
+    // Update theme toggle button appearance
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    if (themeToggleBtn) {
+        themeToggleBtn.classList.toggle('dark-mode', themeToApply === 'dark');
+    }
+    
+    // Highlight selected theme in settings
+    if (elements.themeButtons) {
+        elements.themeButtons.forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-theme') === state.theme);
+        });
+    }
+}
+
+// Toggle between light and dark theme
+function toggleTheme() {
+    // Get current theme
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    
+    // Toggle to opposite theme
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    
+    // Update state
+    state.theme = newTheme;
+    localStorage.setItem('ctfbot_theme', newTheme);
+    
+    // Apply the new theme
+    applyTheme();
+    
+    // Show toast notification
+    toast.show(`Switched to ${newTheme} theme`, 'info');
+}
+
+// Check API key status
+async function checkApiKeyStatus() {
+    if (!state.apiKey) {
+        updateApiStatus(false, 'API key required');
+        return false;
+    }
+
+    try {
+        // Make a lightweight request to the API to check auth
+        const response = await fetch(`${API_BASE_URL}/models?key=${state.apiKey}`);
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            const errorMessage = errorData.error?.message || `Error ${response.status}: ${response.statusText}`;
+            updateApiStatus(false, errorMessage);
+            return false;
+        }
+        
+        // If we got here, API key is valid
+        updateApiStatus(true);
+        
+        // Hide the API key notice if it was showing
+        if (elements.apiKeyNotice) {
+            elements.apiKeyNotice.style.display = 'none';
+        }
+        
+        return true;
+        
+    } catch (error) {
+        updateApiStatus(false, error.message);
+        return false;
+    }
+}
+
 // Setup event listeners
 function setupEventListeners() {
     // Message input
@@ -376,7 +491,11 @@ function setupEventListeners() {
     if (apiKeyInstructionsBtn) {
         apiKeyInstructionsBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            document.getElementById('api-key-instructions').style.display = 'block';
+            const instructionsElement = document.getElementById('api-key-instructions');
+            if (instructionsElement) {
+                const isVisible = instructionsElement.style.display === 'block';
+                instructionsElement.style.display = isVisible ? 'none' : 'block';
+            }
         });
     }
     
@@ -392,6 +511,12 @@ function setupEventListeners() {
             btn.addEventListener('click', () => {
                 const theme = btn.getAttribute('data-theme');
                 if (theme) {
+                    // Remove active class from all buttons
+                    elements.themeButtons.forEach(b => b.classList.remove('active'));
+                    // Add active class to selected button
+                    btn.classList.add('active');
+                    
+                    // Update state
                     state.theme = theme;
                     localStorage.setItem('ctfbot_theme', theme);
                     applyTheme();
@@ -399,6 +524,39 @@ function setupEventListeners() {
             });
         });
     }
+
+    // Listen for system theme changes
+    const darkModeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    darkModeMediaQuery.addEventListener('change', () => {
+        if (state.theme === 'system') {
+            applyTheme();
+        }
+    });
+
+    // Add keyboard shortcut listeners
+    document.addEventListener('keydown', (e) => {
+        // Esc key closes modals
+        if (e.key === 'Escape') {
+            if (elements.settingsModal && elements.settingsModal.classList.contains('show')) {
+                closeSettingsModal();
+            }
+            if (elements.chatHistorySidebar && elements.chatHistorySidebar.classList.contains('show')) {
+                toggleChatHistory();
+            }
+        }
+        
+        // Ctrl+/ or Cmd+/ to open settings
+        if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+            e.preventDefault();
+            openSettingsModal();
+        }
+        
+        // Ctrl+N or Cmd+N for new chat
+        if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+            e.preventDefault();
+            startNewChat();
+        }
+    });
 }
 
 // Adjust textarea height
@@ -718,6 +876,16 @@ function processMessageContent(content) {
     return processed.replace(/\n/g, '<br>');
 }
 
+// Escape HTML to prevent XSS
+function escapeHtml(unsafe) {
+    return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
 // Toast notification system
 const toast = {
     container: null,
@@ -741,13 +909,16 @@ const toast = {
         
         this.container.appendChild(toast);
         
-        // Trigger reflow for animation
-        toast.offsetHeight;
+        // Trigger animation
+        setTimeout(() => toast.classList.add('show'), 10);
         
+        // Schedule removal
         setTimeout(() => {
-            toast.style.opacity = '0';
+            toast.classList.remove('show');
             setTimeout(() => {
-                this.container.removeChild(toast);
+                if (toast.parentNode) {
+                    this.container.removeChild(toast);
+                }
             }, 300);
         }, duration);
     }
@@ -755,6 +926,8 @@ const toast = {
 
 // Update API status with toast notifications
 function updateApiStatus(isConnected, errorMessage = '') {
+    if (!elements.apiStatusIndicator || !elements.apiStatusText) return;
+    
     elements.apiStatusIndicator.classList.toggle('connected', isConnected);
     elements.apiStatusText.textContent = isConnected ? 
         'API Status: Connected' : 
@@ -762,17 +935,21 @@ function updateApiStatus(isConnected, errorMessage = '') {
     
     if (isConnected) {
         toast.show('Successfully connected to Gemini API', 'success');
-        elements.apiKeyNotice.style.display = 'none';
+        if (elements.apiKeyNotice) {
+            elements.apiKeyNotice.style.display = 'none';
+        }
     } else {
         toast.show(`API Error: ${errorMessage}`, 'error');
         if (errorMessage.includes('API key') || errorMessage.includes('authentication')) {
-            elements.apiKeyNotice.style.display = 'flex';
+            if (elements.apiKeyNotice) {
+                elements.apiKeyNotice.style.display = 'flex';
+            }
         }
     }
 }
 
-// Update copy code function to use toast
-function copyCode(button) {
+// Global function for copying code (needs to be accessible from HTML)
+window.copyCode = function(button) {
     const codeBlock = button.closest('.code-block');
     const code = codeBlock.querySelector('code').textContent;
     
@@ -785,7 +962,7 @@ function copyCode(button) {
         button.classList.add('error');
         setTimeout(() => button.classList.remove('error'), 2000);
     });
-}
+};
 
 // Nice Feedback copy code function
 function copyFeedback() {
@@ -804,27 +981,38 @@ function copyFeedback() {
 // Add toast notifications to settings save
 async function saveSettings() {
     const newApiKey = elements.apiKeyInput.value.trim();
+    let settingsChanged = false;
     
     try {
-        if (newApiKey && newApiKey !== state.apiKey) {
+        // Check if API key changed
+        if (newApiKey !== state.apiKey) {
             state.apiKey = newApiKey;
             localStorage.setItem('ctfbot_api_key', newApiKey);
-            const isValid = await checkApiKeyStatus();
-            if (isValid) {
-                toast.show('Settings saved successfully', 'success');
+            settingsChanged = true;
+            
+            // Validate the new API key
+            await checkApiKeyStatus();
+        }
+        
+        // Check if history setting changed
+        if (elements.historyToggle.checked !== state.saveHistory) {
+            state.saveHistory = elements.historyToggle.checked;
+            localStorage.setItem('ctfbot_save_history', state.saveHistory);
+            settingsChanged = true;
+            
+            if (!state.saveHistory) {
+                clearChatHistory();
             }
         }
         
-        state.saveHistory = elements.historyToggle.checked;
-        localStorage.setItem('ctfbot_save_history', state.saveHistory);
-        
-        if (!state.saveHistory) {
-            clearChatHistory();
-            toast.show('Chat history cleared', 'info');
+        if (settingsChanged) {
+            toast.show('Settings saved successfully', 'success');
         }
         
         closeSettingsModal();
+        
     } catch (error) {
+        console.error('Settings save error:', error);
         toast.show('Failed to save settings: ' + error.message, 'error');
     }
 }
@@ -954,7 +1142,6 @@ function saveChatHistory() {
     }
 }
 
-
 // Add function to clear oldest conversation when storage is full
 function clearOldestConversation() {
     const conversations = [];
@@ -983,22 +1170,26 @@ function clearOldestConversation() {
 function clearChatHistory() {
     state.chatHistory = [];
     localStorage.removeItem('ctfbot_chat_history');
+    updateChatHistoryList();
 }
 
 // Toggle chat history sidebar with improved handling
 function toggleChatHistory() {
     const isVisible = elements.chatHistorySidebar.classList.contains('show');
-    
+
     if (isVisible) {
+        // Hide sidebar
         elements.chatHistorySidebar.classList.remove('show');
         elements.sidebarOverlay.classList.remove('show');
         document.body.style.overflow = '';
     } else {
+        // Show sidebar
         elements.chatHistorySidebar.classList.add('show');
         elements.sidebarOverlay.classList.add('show');
+
         // Prevent background scrolling on mobile
         document.body.style.overflow = 'hidden';
-        
+
         // Update chat history list when opening
         updateChatHistoryList();
     }
@@ -1006,21 +1197,23 @@ function toggleChatHistory() {
 
 // Add a new function to update chat history list
 function updateChatHistoryList() {
+    if (!elements.chatHistoryList) return;
+
     // Clear existing history list
     elements.chatHistoryList.innerHTML = '';
-    
-    if (state.chatHistory.length === 0) {
+
+    if (!state.chatHistory || state.chatHistory.length === 0) {
         const emptyHistory = document.createElement('div');
         emptyHistory.classList.add('empty-history');
         emptyHistory.textContent = 'No chat history yet';
         elements.chatHistoryList.appendChild(emptyHistory);
         return;
     }
-    
+
     // Group messages by conversation
     let conversations = [];
     let currentConversation = [];
-    
+
     state.chatHistory.forEach(msg => {
         currentConversation.push(msg);
         if (msg.type === 'system' && msg.content.includes('Hello! I\'m CTFBot')) {
@@ -1028,27 +1221,27 @@ function updateChatHistoryList() {
             currentConversation = [];
         }
     });
-    
+
     // Add remaining messages as current conversation
     if (currentConversation.length > 0) {
         conversations.push(currentConversation);
     }
-    
+
     // Create chat history items
     conversations.forEach((conversation, index) => {
         const chatItem = document.createElement('div');
         chatItem.classList.add('chat-history-item');
-        
+
         // Find first user message for title
         const firstUserMsg = conversation.find(msg => msg.type === 'user');
-        const title = firstUserMsg ? 
-            (firstUserMsg.content.length > 30 ? 
-                firstUserMsg.content.substring(0, 30) + '...' : 
+        const title = firstUserMsg ?
+            (firstUserMsg.content.length > 30 ?
+                firstUserMsg.content.substring(0, 30) + '...' :
                 firstUserMsg.content) :
             'New Conversation';
-        
+
         const date = new Date().toLocaleDateString();
-        
+
         chatItem.innerHTML = `
             <div class="chat-info">
                 <div class="chat-title">${title}</div>
@@ -1056,7 +1249,7 @@ function updateChatHistoryList() {
             </div>
             <button class="delete-chat-btn" aria-label="Delete conversation">×</button>
         `;
-        
+
         // Add click handler to load conversation
         chatItem.addEventListener('click', (e) => {
             if (e.target.classList.contains('delete-chat-btn')) {
@@ -1066,7 +1259,7 @@ function updateChatHistoryList() {
                 loadConversation(conversation);
             }
         });
-        
+
         elements.chatHistoryList.appendChild(chatItem);
     });
 }
@@ -1077,15 +1270,15 @@ function loadConversation(conversation) {
     while (elements.chatMessages.firstChild) {
         elements.chatMessages.removeChild(elements.chatMessages.firstChild);
     }
-    
+
     // Hide welcome screen
     elements.welcomeScreen.style.display = 'none';
-    
+
     // Load conversation messages
     conversation.forEach(msg => {
         addMessageToChat(msg.type, msg.content);
     });
-    
+
     // Close sidebar on mobile
     if (window.innerWidth <= 768) {
         toggleChatHistory();
@@ -1096,7 +1289,7 @@ function loadConversation(conversation) {
 function deleteConversation(index) {
     const conversations = [];
     let currentConversation = [];
-    
+
     state.chatHistory.forEach(msg => {
         currentConversation.push(msg);
         if (msg.type === 'system' && msg.content.includes('Hello! I\'m CTFBot')) {
@@ -1104,22 +1297,22 @@ function deleteConversation(index) {
             currentConversation = [];
         }
     });
-    
+
     if (currentConversation.length > 0) {
         conversations.push(currentConversation);
     }
-    
+
     // Remove the conversation
     conversations.splice(index, 1);
-    
+
     // Flatten conversations back into chat history
     state.chatHistory = conversations.flat();
-    
+
     // Save updated history
     if (state.saveHistory) {
         saveChatHistory();
     }
-    
+
     // Updated UI
     updateChatHistoryList();
 }
