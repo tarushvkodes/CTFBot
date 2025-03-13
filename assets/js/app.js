@@ -339,6 +339,26 @@ function openSettingsModal() {
     setTimeout(() => elements.apiKeyInput.focus(), 100);
 }
 
+// Sets processing state to show/hide typing indicator
+function setProcessingState(isProcessing) {
+    state.isProcessing = isProcessing;
+    
+    // Show/hide typing indicator
+    if (elements.typingIndicator) {
+        elements.typingIndicator.style.display = isProcessing ? 'flex' : 'none';
+    }
+    
+    // Enable/disable send button
+    if (elements.sendBtn) {
+        elements.sendBtn.disabled = isProcessing;
+    }
+    
+    // Enable/disable message input
+    if (elements.messageInput) {
+        elements.messageInput.disabled = isProcessing;
+    }
+}
+
 // Close settings modal
 function closeSettingsModal() {
     if (!elements.settingsModal) return;
