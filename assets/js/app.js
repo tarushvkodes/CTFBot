@@ -1370,7 +1370,11 @@ function updateModelSelect() {
 if (elements.modelSelect) {
     elements.modelSelect.addEventListener('change', (e) => {
         const selectedValue = e.target.value;
-        selectedValue === state.selectedModel || showUpdate();
+        if (selectedValue !== state.selectedModel) {
+            state.selectedModel = selectedValue;
+            updateApiUrl();
+            toast.show(`Model changed to ${selectedValue}`, 'info');
+        }
     });
 }
 
