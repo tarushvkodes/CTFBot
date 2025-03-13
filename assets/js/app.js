@@ -50,43 +50,143 @@ const elements = {
     themeButtons: document.querySelectorAll('.theme-btn')
 };
 
-// Initialize the application
-async function init() {
-    // Apply theme immediately before any other operations
-    applyTheme();
+// Add new function to handle new chat
+function startNewChat() {
+    // Clear chat messages
+    elements.chatMessages.innerHTML = '';
     
-    // Add global window function for code copying
-    window.copyCode = copyCode;
-    
-    // Setup event listeners
-    setupEventListeners();
-    
-    // Load chat history in the background
-    setTimeout(() => {
-        loadChatHistory();
-    }, 0);
-    
-    // Check API key status in the background
-    if (state.apiKey) {
-        elements.apiKeyInput.value = state.apiKey;
-        setTimeout(async () => {
-            await checkApiKeyStatus();
-            if (elements.apiKeyNotice) {
-                elements.apiKeyNotice.style.display = 'none';
-            }
-        }, 0);
+    // Show welcome screen
+    if (elements.welcomeScreen) {
+        elements.welcomeScreen.style.display = 'block';
     }
     
-    // Set initial input height
-    adjustTextareaHeight();
+    // Clear chat history
+    state.chatHistory = [];
     
-    // Add input field event listeners
-    elements.messageInput.addEventListener('input', () => {
+    // Clear input field
+    if (elements.messageInput) {
+        elements.messageInput.value = '';
         adjustTextareaHeight();
-        // Enable/disable send button based on content
-        elements.sendBtn.disabled = !elements.messageInput.value.trim();
-    });
+    }
+    
+    // Reset assistance type to default
+    if (elements.assistanceType) {
+        elements.assistanceType.value = 'analyze';
+    }
 }
+
+// Initialize the application
+// App loading state management
+const loadingStates = {
+    init: {
+        message: 'Initializing CTFBot...',
+        progress: 0
+    },
+    api: {
+        message: 'Checking API connection...',
+        progress: 25
+    },
+    history: {
+        message: 'Loading chat history...',
+        progress: 50
+    },
+    theme: {
+        message: 'Applying preferences...',
+        progress: 75
+    },
+    ready: {
+        message: 'Ready!',
+        progress: 100
+    }
+};
+
+// Initialize the application with loading states
+async function init() {
+    try {
+        // Create loading overlay
+        const loadingOverlay = createLoadingOverlay();
+        document.body.appendChild(loadingOverlay);
+        
+        // Update loading state - Init
+        updateLoadingState(loadingStates.init);
+        
+        // Apply theme immediately
+        applyTheme();
+        await delay(300); // Small delay for visual feedback
+        
+        // Check API status
+        updateLoadingState(loadingStates.api);
+        if (state.apiKey) {
+            elements.apiKeyInput.value = state.apiKey;
+            await checkApiKeyStatus();
+        }
+        await delay(300);
+        
+        // Load chat history
+        updateLoadingState(loadingStates.history);
+        await loadChatHistory();
+        await delay(300);
+        
+        // Apply preferences
+        updateLoadingState(loadingStates.theme);
+        setupEventListeners();
+        adjustTextareaHeight();
+        await delay(300);
+        
+        // Ready state
+        updateLoadingState(loadingStates.ready);
+        await delay(500);
+        
+        // Remove loading overlay with fade out
+        loadingOverlay.style.opacity = '0';
+        await delay(300);
+        loadingOverlay.remove();
+        
+        // Show welcome animation
+        elements.welcomeScreen.style.opacity = '0';
+        elements.welcomeScreen.style.display = 'block';
+        await delay(100);
+        elements.welcomeScreen.style.opacity = '1';
+        
+    } catch (error) {
+        console.error('Initialization error:', error);
+        toast.show('Error initializing application: ' + error.message, 'error');
+    }
+}
+
+// Create loading overlay element
+function createLoadingOverlay() {
+    const overlay = document.createElement('div');
+    overlay.className = 'loading-overlay';
+    overlay.innerHTML = `
+        <div class="loading-content">
+            <div class="loading-logo">
+                <img src="assets/images/ctfbot-logo.svg" alt="CTFBot Logo" />
+            </div>
+            <div class="loading-progress">
+                <div class="progress-bar">
+                    <div class="progress-fill"></div>
+                </div>
+                <div class="loading-message">Initializing...</div>
+            </div>
+        </div>
+    `;
+    return overlay;
+}
+
+// Update loading state
+function updateLoadingState(state) {
+    const progressFill = document.querySelector('.progress-fill');
+    const loadingMessage = document.querySelector('.loading-message');
+    
+    if (progressFill && loadingMessage) {
+        progressFill.style.width = `${state.progress}%`;
+        loadingMessage.textContent = state.message;
+    }
+}
+
+// Helper function for creating delays
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 // Setup event listeners
 function setupEventListeners() {
@@ -117,6 +217,12 @@ function setupEventListeners() {
     }
     if (elements.sidebarOverlay) {
         elements.sidebarOverlay.addEventListener('click', toggleChatHistory);
+    }
+
+    // Add new chat button handler
+    const newChatBtn = document.getElementById('new-chat-btn');
+    if (newChatBtn) {
+        newChatBtn.addEventListener('click', startNewChat);
     }
 
     // Settings modal
@@ -428,255 +534,169 @@ function constructPromptWithHistory(userPrompt) {
     return fullPrompt;
 }
 
-// Add message to chat UI
-function addMessageToChat(type, content) {
-    // Hide welcome screen when messages are added
-    if (elements.welcomeScreen) {
-        elements.welcomeScreen.style.display = 'none';
-    }
-    
-    // Format message and show in chat
-    const messageHtml = processMessageContent(content);
-    elements.chatMessages.innerHTML += `<div class="message message-${type}"><div class="message-content">${messageHtml}</div></div>`;
-    
-    // Clear input field
-    elements.messageInput.value = '';
-}
-
-// Process message content for formatting
+// Add a new function to improve code block handling
 function processMessageContent(content) {
     if (!content) return '';
     
     // Escape HTML to prevent XSS
     let processed = escapeHtml(content);
     
-    // Handle code blocks
-    processed = processed.replace(/```([\s\S]*?)```/g, (match, code) => {
-        return `<div class="code-block"><pre>${code.trim()}</pre><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>`;
+    // Handle code blocks with language specification
+    processed = processed.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
+        const language = lang || 'plaintext';
+        const highlightedCode = Prism.highlight(
+            code.trim(),
+            Prism.languages[language] || Prism.languages.plaintext,
+            language
+        );
+        return `
+            <div class="code-block" role="region" aria-label="Code block ${language}">
+                <div class="code-header">
+                    <span class="code-language">${language}</span>
+                    <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                        <span>Copy</span>
+                    </button>
+                </div>
+                <pre class="line-numbers"><code class="language-${language}">${highlightedCode}</code></pre>
+            </div>`;
     });
     
     // Handle inline code
-    processed = processed.replace(/`([^`]+)`/g, '<code>$1</code>');
+    processed = processed.replace(/`([^`]+)`/g, (match, code) => {
+        const highlighted = Prism.highlight(
+            code,
+            Prism.languages.plaintext,
+            'plaintext'
+        );
+        return `<code class="inline-code">${highlighted}</code>`;
+    });
     
-    // Convert URLs to clickable links
+    // Convert URLs to clickable links with security attributes
     processed = processed.replace(
         /(https?:\/\/[^\s<]+[^<.,:;"')\]\s])/g,
-        '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+        '<a href="$1" target="_blank" rel="noopener noreferrer" class="external-link">$1</a>'
     );
     
-    // Process new lines
+    // Process new lines and preserve spacing
     return processed.replace(/\n/g, '<br>');
 }
 
-// Copy code to clipboard
-function copyCode(button) {
-    const codeBlock = button.previousElementSibling;
-    const code = codeBlock.textContent;
+// Toast notification system
+const toast = {
+    container: null,
     
-    navigator.clipboard.writeText(code).then(() => {
-        const originalText = button.textContent;
-        button.textContent = 'Copied!';
+    init() {
+        // Create toast container if it doesn't exist
+        if (!this.container) {
+            this.container = document.createElement('div');
+            this.container.className = 'toast-container';
+            document.body.appendChild(this.container);
+        }
+    },
+    
+    show(message, type = 'info', duration = 3000) {
+        this.init();
+        
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.setAttribute('role', 'alert');
+        toast.innerHTML = message;
+        
+        this.container.appendChild(toast);
+        
+        // Trigger reflow for animation
+        toast.offsetHeight;
+        
         setTimeout(() => {
-            button.textContent = originalText;
-        }, 2000);
-    }).catch(err => {
-        console.error('Failed to copy code:', err);
-        button.textContent = 'Failed to copy';
-    });
-}
-
-// Escape HTML to prevent XSS
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-// Set the processing state (loading indicator, button state)
-function setProcessingState(isProcessing) {
-    state.isProcessing = isProcessing;
-    elements.sendBtn.disabled = isProcessing;
-    
-    // Show/hide typing indicator
-    elements.typingIndicator.style.display = isProcessing ? 'block' : 'none';
-    
-    // Hide the welcome screen when processing
-    if (!isProcessing && elements.welcomeScreen) {
-        elements.welcomeScreen.style.display = 'none';
+            toast.style.opacity = '0';
+            setTimeout(() => {
+                this.container.removeChild(toast);
+            }, 300);
+        }, duration);
     }
-}
+};
 
-// Check API status
-async function checkApiStatus() {
-    try {
-        // Validate API key format first
-        if (!state.apiKey || !/^[A-Za-z0-9-_]{39}$/.test(state.apiKey)) {
-            updateApiStatus(false, 'Invalid API key format');
-            elements.apiKeyNotice.style.display = 'flex';
-            return;
-        }
-
-        // Simple test request to see if the API is accessible
-        const testURL = `${API_BASE_URL}/models?key=${state.apiKey}`;
-        const response = await fetch(testURL);
-        const data = await response.json();
-        
-        if (data.error) {
-            updateApiStatus(false, data.error.message);
-            elements.apiKeyNotice.style.display = 'flex';
-        } else {
-            updateApiStatus(true);
-            elements.apiKeyNotice.style.display = 'none';
-        }
-    } catch (error) {
-        updateApiStatus(false, error.message);
-        elements.apiKeyNotice.style.display = 'flex';
-    }
-}
-
-// Improved API status check
-async function checkApiKeyStatus() {
-    try {
-        if (!state.apiKey) {
-            throw new Error('API key required');
-        }
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-
-        const testURL = `${API_BASE_URL}/models/${MODEL_NAME}?key=${state.apiKey}`;
-        const response = await fetch(testURL, { 
-            signal: controller.signal,
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        clearTimeout(timeoutId);
-        
-        const data = await response.json();
-        
-        if (response.ok && !data.error) {
-            updateApiStatus(true);
-            elements.apiKeyNotice.style.display = 'none';
-            return true;
-        } else {
-            throw new Error(data.error?.message || 'API validation failed');
-        }
-    } catch (error) {
-        console.error('API Status Check Error:', error);
-        const errorMessage = error.name === 'AbortError' ? 
-            'Connection timeout - please check your internet connection' : 
-            error.message;
-        updateApiStatus(false, errorMessage);
-        elements.apiKeyNotice.style.display = 'flex';
-        return false;
-    }
-}
-
-// Update API status indicator
+// Update API status with toast notifications
 function updateApiStatus(isConnected, errorMessage = '') {
     elements.apiStatusIndicator.classList.toggle('connected', isConnected);
-    elements.apiStatusIndicator.classList.toggle('error', !isConnected);
+    elements.apiStatusText.textContent = isConnected ? 
+        'API Status: Connected' : 
+        `API Status: ${errorMessage || 'Disconnected'}`;
     
     if (isConnected) {
-        elements.apiStatusText.textContent = 'API Status: Connected';
+        toast.show('Successfully connected to Gemini API', 'success');
         elements.apiKeyNotice.style.display = 'none';
     } else {
-        const displayError = errorMessage === 'Invalid API key format' ? 
-            'Invalid API key format - Please check your API key' : 
-            `API Status: Error - ${errorMessage}`;
-        elements.apiStatusText.textContent = displayError;
-        elements.apiKeyNotice.style.display = 'flex';
+        toast.show(`API Error: ${errorMessage}`, 'error');
+        if (errorMessage.includes('API key') || errorMessage.includes('authentication')) {
+            elements.apiKeyNotice.style.display = 'flex';
+        }
     }
 }
 
-// Open settings modal
-function openSettingsModal() {
-    elements.settingsModal.classList.add('show');
-}
-
-// Close settings modal
-function closeSettingsModal() {
-    elements.settingsModal.classList.remove('show');
-}
-
-// Save settings
-async function saveSettings() {
-    const newApiKey = elements.apiKeyInput.value.trim();
-    if (newApiKey && newApiKey !== state.apiKey) {
-        state.apiKey = newApiKey;
-        localStorage.setItem('ctfbot_api_key', newApiKey);
-        await checkApiKeyStatus();
-    }
+// Update copy code function to use toast
+function copyCode(button) {
+    const codeBlock = button.closest('.code-block');
+    const code = codeBlock.querySelector('code').textContent;
     
-    // Save history preference
-    state.saveHistory = elements.historyToggle.checked;
-    localStorage.setItem('ctfbot_save_history', state.saveHistory);
-    
-    if (!state.saveHistory) {
-        clearChatHistory();
-    }
-    
-    closeSettingsModal();
-}
-
-// Toggle between light and dark theme
-function toggleTheme() {
-    // Get the current theme
-    const currentTheme = state.theme;
-    
-    // Determine the new theme
-    let newTheme;
-    if (currentTheme === 'system') {
-        newTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'light' : 'dark';
-    } else {
-        newTheme = currentTheme === 'light' ? 'dark' : 'light';
-    }
-    
-    // Update state and localStorage
-    state.theme = newTheme;
-    localStorage.setItem('ctfbot_theme', newTheme);
-    
-    // Apply the theme
-    applyTheme();
-    
-    // Update theme buttons in settings
-    elements.themeButtons.forEach(btn => {
-        btn.classList.toggle('active', btn.getAttribute('data-theme') === newTheme);
+    navigator.clipboard.writeText(code).then(() => {
+        toast.show('Code copied to clipboard', 'success');
+        button.classList.add('success');
+        setTimeout(() => button.classList.remove('success'), 2000);
+    }).catch(err => {
+        toast.show('Failed to copy code', 'error');
+        button.classList.add('error');
+        setTimeout(() => button.classList.remove('error'), 2000);
     });
 }
 
-// Apply current theme with improved handling
-function applyTheme() {
-    const theme = state.theme;
-    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    
-    // Determine the actual theme to apply
-    const effectiveTheme = theme === 'system' ? 
-        (systemPrefersDark ? 'dark' : 'light') : 
-        theme;
-    
-    // Apply theme to document
-    document.documentElement.setAttribute('data-theme', effectiveTheme);
-    
-    // Update theme icons
-    const moonIcon = document.querySelector('.moon-icon');
-    const sunIcon = document.querySelector('.sun-icon');
-    
-    if (moonIcon && sunIcon) {
-        if (effectiveTheme === 'dark') {
-            moonIcon.style.display = 'none';
-            sunIcon.style.display = 'block';
-        } else {
-            moonIcon.style.display = 'block';
-            sunIcon.style.display = 'none';
-        }
+// Nice Feedback copy code function
+function copyFeedback() {
+    const feedbackButton = document.getElementById('copy-feedback');
+    if (elements.apiStatusIndicator.classList.contains('connected')) {
+        toast.show('Feedback Received, Thank you!', 'success');
+        feedbackButton.classList.add('success');
+        setTimeout(() => feedbackButton.classList.remove('success'), 2000);
+    } else {
+        toast.show('Could not send Feedback', 'error');
+        feedbackButton.classList.add('error');
+        setTimeout(() => feedbackButton.classList.remove('error'), 2000);
     }
-    
-    // Store the effective theme
-    document.documentElement.style.setProperty('--effective-theme', effectiveTheme);
 }
 
+// Add toast notifications to settings save
+async function saveSettings() {
+    const newApiKey = elements.apiKeyInput.value.trim();
+    
+    try {
+        if (newApiKey && newApiKey !== state.apiKey) {
+            state.apiKey = newApiKey;
+            localStorage.setItem('ctfbot_api_key', newApiKey);
+            const isValid = await checkApiKeyStatus();
+            if (isValid) {
+                toast.show('Settings saved successfully', 'success');
+            }
+        }
+        
+        state.saveHistory = elements.historyToggle.checked;
+        localStorage.setItem('ctfbot_save_history', state.saveHistory);
+        
+        if (!state.saveHistory) {
+            clearChatHistory();
+            toast.show('Chat history cleared', 'info');
+        }
+        
+        closeSettingsModal();
+    } catch (error) {
+        toast.show('Failed to save settings: ' + error.message, 'error');
+    }
+}
+
+// Enhanced handling of chat history
 // Save chat history to localStorage
 function saveChatHistory() {
     if (state.saveHistory) {
@@ -707,6 +727,7 @@ function loadChatHistory() {
     }
 }
 
+// Gather info and show the appropriate interaction screen
 // Clear chat history
 function clearChatHistory() {
     state.chatHistory = [];
