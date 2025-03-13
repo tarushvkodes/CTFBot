@@ -5,7 +5,8 @@
 const DEFAULT_API_KEY = ""; // No default API key - users must provide their own
 const API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const MODEL_NAME = "gemini-pro";
-const API_URL = `${API_BASE_URL}/models/${MODEL_NAME}:generateContent`;
+// Updated API URL to use the correct endpoint
+const API_URL = `${API_BASE_URL}/models/${MODEL_NAME}:generateContent?key=`;
 const MAX_HISTORY_LENGTH = 20; // Maximum number of messages to keep in history
 const MAX_CONVERSATIONS = 50; // Maximum number of conversations to store
 const MESSAGES_PER_PAGE = 50; // Number of messages to load at once
@@ -592,7 +593,6 @@ async function handleSendMessage() {
 // Send message to the Gemini API with streaming support
 async function sendToGemini(prompt) {
     try {
-        // More lenient API key validation
         if (!state.apiKey) {
             throw new Error('API key is required');
         }
@@ -602,13 +602,13 @@ async function sendToGemini(prompt) {
         
         // Use the selected model instead of hardcoded MODEL_NAME
         const modelToUse = state.selectedModel;
-        const streamingUrl = `${API_BASE_URL}/models/${modelToUse}:streamGenerateContent`;
+        const requestUrl = `${API_BASE_URL}/models/${modelToUse}:generateContent?key=${state.apiKey}`;
         
         // Create message container ahead of time
         const messageContainer = addEmptyMessage('assistant');
 
-        console.log(`Sending request to API using model ${modelToUse}:`, fullContext); // Debug log
-        const response = await fetch(`${streamingUrl}?key=${state.apiKey}`, {
+        console.log(`Sending request to API using model ${modelToUse}`); // Debug log
+        const response = await fetch(requestUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -628,45 +628,23 @@ async function sendToGemini(prompt) {
 
         if (!response.ok) {
             const errorData = await response.json();
-            throw new Error(errorData.error?.message || `API Error: ${response.status}`);
+            throw new Error(errorData.error?.message || `API Error: ${response.status} - ${response.statusText}`);
         }
 
-        let fullResponse = '';
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-
-        while (true) {
-            const { value, done } = await reader.read();
-            if (done) break;
-            
-            // Decode and process the chunk
-            const chunk = decoder.decode(value);
-            const lines = chunk.split('\n').filter(line => line.trim());
-            
-            for (const line of lines) {
-                try {
-                    if (line.startsWith('data: ')) {
-                        const jsonData = JSON.parse(line.slice(5));
-                        if (jsonData.candidates?.[0]?.content?.parts?.[0]?.text) {
-                            const text = jsonData.candidates[0].content.parts[0].text;
-                            fullResponse += text;
-                            updateMessageContent(messageContainer, fullResponse);
-                        }
-                    }
-                } catch (e) {
-                    console.error('Error parsing streaming response:', e);
-                }
-            }
+        const data = await response.json();
+        if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+            throw new Error('Invalid response format from API');
         }
-        
+
+        const responseText = data.candidates[0].content.parts[0].text;
+        updateMessageContent(messageContainer, responseText);
         updateApiStatus(true);
-        return fullResponse;
+        return responseText;
         
     } catch (error) {
         console.error('API Error:', error);
         updateApiStatus(false, error.message);
         
-        // Show API key notice if the error is related to authentication
         if (error.message.includes('API key') || error.message.includes('authentication')) {
             elements.apiKeyNotice.style.display = 'flex';
         }
