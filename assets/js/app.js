@@ -413,6 +413,12 @@ async function handleSendMessage() {
     const messageText = elements.messageInput.value.trim();
     if (!messageText || state.isProcessing) return;
 
+    // Hide the cube when sending a message
+    const cubeContainer = document.getElementById('cube-container');
+    if (cubeContainer) {
+        cubeContainer.classList.add('hidden');
+    }
+
     // Blur input on mobile to hide keyboard
     if (window.innerWidth <= 768) {
         elements.messageInput.blur();
@@ -947,6 +953,7 @@ function saveChatHistory() {
         }
     }
 }
+
 
 // Add function to clear oldest conversation when storage is full
 function clearOldestConversation() {
