@@ -377,6 +377,9 @@ main {
 .close-history-btn {
     background: none;
     border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--color-text-secondary);
 }
 .close-history-btn:hover {
     color: var(--color-text-primary);
@@ -787,25 +790,39 @@ footer {
 
     /* Mobile-specific cube adjustments */
     .cube-container {
-        height: 120px;
-        margin: 10px 0;
+        height: 200px;
+        margin: 2rem auto;
+        perspective: 1000px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
     }
 
     .cube {
-        width: 60px;
-        height: 60px;
+        width: 200px;
+        height: 200px;
+        position: relative;
+        transform-style: preserve-3d;
+        font-family: monospace;
+        font-size: 12px;
+        white-space: pre;
+        color: var(--color-text-secondary);
+        cursor: grab;
     }
 
     .cube-face {
-        font-size: 6px;
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        background: var(--color-bg-secondary);
+        border: 1px solid var(--color-border);
+        user-select: none;
+        line-height: 1;
     }
-
-    .front, .back  { transform: translateZ(30px); }
-    .back   { transform: rotateY(180deg) translateZ(30px); }
-    .top    { transform: rotateX(90deg) translateZ(30px); }
-    .bottom { transform: rotateX(-90deg) translateZ(30px); }
-    .left   { transform: rotateY(-90deg) translateZ(30px); }
-    .right  { transform: rotateY(90deg) translateZ(30px); }
 
     /* Make messages clearer on mobile */
     .message {
