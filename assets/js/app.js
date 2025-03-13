@@ -4,8 +4,7 @@
 // Constants and configuration
 const DEFAULT_API_KEY = ""; // No default API key - users must provide their own
 const API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
-const MODEL_NAME = "gemini-pro";
-// Updated API URL to use the correct endpoint
+const MODEL_NAME = "gemini-2.0-flash"; // Updated to use Gemini 2.0 Flash
 const API_URL = `${API_BASE_URL}/models/${MODEL_NAME}:generateContent?key=`;
 const MAX_HISTORY_LENGTH = 20; // Maximum number of messages to keep in history
 const MAX_CONVERSATIONS = 50; // Maximum number of conversations to store
@@ -31,9 +30,7 @@ const state = {
     chatHistory: [],
     currentContext: '',
     historyPage: 0, // Current page of history being displayed
-    totalHistoryPages: 0, // Total number of history pages
-    availableModels: [], // Available Gemini models
-    selectedModel: localStorage.getItem('ctfbot_selected_model') || MODEL_NAME // Currently selected model
+    totalHistoryPages: 0 // Total number of history pages
 };
 
 // DOM Elements
@@ -52,9 +49,7 @@ const elements = {
     chatHistorySidebar: document.getElementById('chat-history-sidebar'),
     chatHistoryList: document.getElementById('chat-history-list'),
     sidebarOverlay: document.querySelector('.sidebar-overlay'),
-    assistanceType: document.getElementById('assistance-type'),
-    themeButtons: document.querySelectorAll('.theme-btn'),
-    modelSelect: document.getElementById('model-select') // Reference to model select dropdown
+    assistanceType: document.getElementById('assistance-type')
 };
 
 // Hide welcome screen
@@ -329,7 +324,7 @@ async function checkApiKeyStatus() {
             elements.apiKeyNotice.style.display = 'none';
         }
 
-        // Fetch available models if API key to valid
+        // Fetch available models if API key is valid
         await fetchAvailableModels();
         
         return true;
@@ -392,12 +387,12 @@ function setupEventListeners() {
         });
         elements.messageInput.addEventListener('input', adjustTextareaHeight);
     }
-    
+
     // Send button
     if (elements.sendBtn) {
         elements.sendBtn.addEventListener('click', handleSendMessage);
     }
-    
+
     // Chat history sidebar
     const historyMenuBtn = document.getElementById('history-menu-btn');
     const closeHistoryBtn = document.getElementById('close-history-btn');
@@ -422,7 +417,7 @@ function setupEventListeners() {
     const closeSettingsBtn = document.getElementById('close-settings');
     const saveSettingsBtn = document.getElementById('save-settings');
     const setupApiKeyBtn = document.getElementById('setup-api-key');
-    
+
     if (settingsBtn) {
         settingsBtn.addEventListener('click', openSettingsModal);
     }
@@ -435,7 +430,7 @@ function setupEventListeners() {
     if (setupApiKeyBtn) {
         setupApiKeyBtn.addEventListener('click', openSettingsModal);
     }
-    
+
     // API key instructions
     const apiKeyInstructionsBtn = document.getElementById('get-api-key-instructions');
     if (apiKeyInstructionsBtn) {
@@ -448,13 +443,13 @@ function setupEventListeners() {
             }
         });
     }
-    
+
     // Theme toggle
     const themeToggleBtn = document.getElementById('theme-toggle');
     if (themeToggleBtn) {
         themeToggleBtn.addEventListener('click', toggleTheme);
     }
-    
+
     // Theme buttons in settings
     if (elements.themeButtons) {
         elements.themeButtons.forEach(btn => {
@@ -465,7 +460,7 @@ function setupEventListeners() {
                     elements.themeButtons.forEach(b => b.classList.remove('active'));
                     // Add active class to selected button
                     btn.classList.add('active');
-                    
+
                     // Update state
                     state.theme = theme;
                     localStorage.setItem('ctfbot_theme', theme);
@@ -494,13 +489,13 @@ function setupEventListeners() {
                 toggleChatHistory();
             }
         }
-        
+
         // Ctrl+/ or Cmd+/ to open settings
         if ((e.ctrlKey || e.metaKey) && e.key === '/') {
             e.preventDefault();
             openSettingsModal();
         }
-        
+
         // Ctrl+N or Cmd+N for new chat
         if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
             e.preventDefault();
@@ -555,7 +550,7 @@ async function handleSendMessage() {
         // Get AI response
         const response = await sendToGemini(formattedMessage);
         console.log('Received response:', response); // Debug log
-        
+
         // Add AI response to chat
         addMessageToChat('assistant', response);
         state.chatHistory.push({ type: 'assistant', content: response });
@@ -590,7 +585,7 @@ async function handleSendMessage() {
     }
 }
 
-// Send message to the Gemini API with streaming support
+// Send message to the Gemini API
 async function sendToGemini(prompt) {
     try {
         if (!state.apiKey) {
@@ -599,11 +594,10 @@ async function sendToGemini(prompt) {
 
         // Construct the full context with chat history and system prompt
         const fullContext = constructPromptWithContext(prompt);
-        
-        // Use the selected model instead of hardcoded MODEL_NAME
-        const modelToUse = state.selectedModel;
+
+        const modelToUse = MODEL_NAME;
         const requestUrl = `${API_BASE_URL}/models/${modelToUse}:generateContent?key=${state.apiKey}`;
-        
+
         // Create message container ahead of time
         const messageContainer = addEmptyMessage('assistant');
 
@@ -640,15 +634,15 @@ async function sendToGemini(prompt) {
         updateMessageContent(messageContainer, responseText);
         updateApiStatus(true);
         return responseText;
-        
+
     } catch (error) {
         console.error('API Error:', error);
         updateApiStatus(false, error.message);
-        
+
         if (error.message.includes('API key') || error.message.includes('authentication')) {
             elements.apiKeyNotice.style.display = 'flex';
         }
-        
+
         throw error;
     }
 }
@@ -657,11 +651,11 @@ async function sendToGemini(prompt) {
 function addEmptyMessage(type) {
     const container = document.createElement('div');
     container.className = `message message-${type}`;
-    
+
     const content = document.createElement('div');
     content.className = 'message-content';
     container.appendChild(content);
-    
+
     elements.chatMessages.appendChild(container);
     return container;
 }
@@ -677,7 +671,7 @@ function updateMessageContent(container, text) {
     if (loadingIndicator) {
         loadingIndicator.style.display = 'none';
     }
-    
+
     // Scroll to bottom smoothly
     requestAnimationFrame(() => {
         elements.chatMessages.scrollTo({
@@ -691,12 +685,12 @@ function updateMessageContent(container, text) {
 function constructPromptWithContext(userPrompt) {
     // Start with system prompt
     let fullPrompt = `${DEFAULT_SYSTEM_PROMPT}\n\n`;
-    
+
     // Add relevant context
     if (state.currentContext) {
         fullPrompt += `Current context:\n${state.currentContext}\n\n`;
     }
-    
+
     // Add recent chat history (limit to last few messages for context)
     const recentHistory = state.chatHistory.slice(-5);
     if (recentHistory.length > 0) {
@@ -707,17 +701,17 @@ function constructPromptWithContext(userPrompt) {
         });
         fullPrompt += "\n";
     }
-    
+
     // Add current user message
     fullPrompt += `User: ${userPrompt}\n\nCTFBot:`;
-    
+
     return fullPrompt;
 }
 
 // Format the query based on assistance type
 function formatQueryForAssistanceType(userMessage, assistanceType) {
     let formattedPrompt = '';
-    
+
     // Format prompt based on assistance type
     switch (assistanceType) {
         case 'analyze':
@@ -735,39 +729,17 @@ function formatQueryForAssistanceType(userMessage, assistanceType) {
         default:
             formattedPrompt = userMessage;
     }
-    
-    return formattedPrompt;
-}
 
-// Construct prompt with history and system prompt
-function constructPromptWithHistory(userPrompt) {
-    // Start with system prompt
-    let fullPrompt = `${DEFAULT_SYSTEM_PROMPT}\n\n`;
-    
-    // Add a reduced version of chat history (last few exchanges only)
-    const relevantHistory = state.chatHistory.slice(-MAX_HISTORY_LENGTH);
-    if (relevantHistory.length > 0) {
-        fullPrompt += "Previous conversation:\n";
-        relevantHistory.forEach(msg => {
-            const role = msg.type === 'user' ? 'User' : 'CTFBot';
-            fullPrompt += `${role}: ${msg.content}\n`;
-        });
-        fullPrompt += "\n";
-    }
-    
-    // Add current user message
-    fullPrompt += `User: ${userPrompt}\n\nCTFBot:`;
-    
-    return fullPrompt;
+    return formattedPrompt;
 }
 
 // Add a new function to improve code block handling
 function processMessageContent(content) {
     if (!content) return '';
-    
+
     // Escape HTML to prevent XSS
     let processed = escapeHtml(content);
-    
+
     // Handle code blocks with language specification
     processed = processed.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
         const language = lang || 'plaintext';
@@ -791,7 +763,7 @@ function processMessageContent(content) {
                 <pre class="line-numbers"><code class="language-${language}">${highlightedCode}</code></pre>
             </div>`;
     });
-    
+
     // Handle inline code
     processed = processed.replace(/`([^`]+)`/g, (match, code) => {
         const highlighted = Prism.highlight(
@@ -801,13 +773,13 @@ function processMessageContent(content) {
         );
         return `<code class="inline-code">${highlighted}</code>`;
     });
-    
+
     // Convert URLs to clickable links with security attributes
     processed = processed.replace(
         /(https?:\/\/[^\s<]+[^<.,:;"')\]\s])/g,
         '<a href="$1" target="_blank" rel="noopener noreferrer" class="external-link">$1</a>'
     );
-    
+
     // Process new lines and preserve spacing
     return processed.replace(/\n/g, '<br>');
 }
@@ -825,7 +797,7 @@ function escapeHtml(unsafe) {
 // Toast notification system
 const toast = {
     container: null,
-    
+
     init() {
         // Create toast container if it doesn't exist
         if (!this.container) {
@@ -834,20 +806,20 @@ const toast = {
             document.body.appendChild(this.container);
         }
     },
-    
+
     show(message, type = 'info', duration = 3000) {
         this.init();
-        
+
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         toast.setAttribute('role', 'alert');
         toast.innerHTML = message;
-        
+
         this.container.appendChild(toast);
-        
+
         // Trigger animation
         setTimeout(() => toast.classList.add('show'), 10);
-        
+
         // Schedule removal
         setTimeout(() => {
             toast.classList.remove('show');
@@ -863,12 +835,12 @@ const toast = {
 // Update API status with toast notifications
 function updateApiStatus(isConnected, errorMessage = '') {
     if (!elements.apiStatusIndicator || !elements.apiStatusText) return;
-    
+
     elements.apiStatusIndicator.classList.toggle('connected', isConnected);
-    elements.apiStatusText.textContent = isConnected ? 
-        'API Status: Connected' : 
+    elements.apiStatusText.textContent = isConnected ?
+        'API Status: Connected' :
         `API Status: ${errorMessage || 'Disconnected'}`;
-    
+
     if (isConnected) {
         toast.show('Successfully connected to Gemini API', 'success');
         if (elements.apiKeyNotice) {
@@ -885,10 +857,10 @@ function updateApiStatus(isConnected, errorMessage = '') {
 }
 
 // Global function for copying code (needs to be accessible from HTML)
-window.copyCode = function(button) {
+window.copyCode = function (button) {
     const codeBlock = button.closest('.code-block');
     const code = codeBlock.querySelector('code').textContent;
-    
+
     navigator.clipboard.writeText(code).then(() => {
         toast.show('Code copied to clipboard', 'success');
         button.classList.add('success');
@@ -918,49 +890,35 @@ function copyFeedback() {
 async function saveSettings() {
     const newApiKey = elements.apiKeyInput.value.trim();
     let settingsChanged = false;
-    
+
     try {
         // Check if API key changed
         if (newApiKey !== state.apiKey) {
             state.apiKey = newApiKey;
             localStorage.setItem('ctfbot_api_key', newApiKey);
             settingsChanged = true;
-            
+
             // Validate the new API key
             await checkApiKeyStatus();
         }
-        
-        // Check if model changed
-        if (elements.modelSelect) {
-            const selectedModel = elements.modelSelect.value;
-            if (selectedModel !== state.selectedModel) {
-                state.selectedModel = selectedModel;
-                localStorage.setItem('ctfbot_selected_model', selectedModel);
-                settingsChanged = true;
-                
-                // Update the API URL for the new model
-                updateApiUrl();
-                toast.show(`Model changed to ${selectedModel}`, 'info');
-            }
-        }
-        
+
         // Check if history setting changed
         if (elements.historyToggle.checked !== state.saveHistory) {
             state.saveHistory = elements.historyToggle.checked;
             localStorage.setItem('ctfbot_save_history', state.saveHistory);
             settingsChanged = true;
-            
+
             if (!state.saveHistory) {
                 clearChatHistory();
             }
         }
-        
+
         if (settingsChanged) {
             toast.show('Settings saved successfully', 'success');
         }
-        
+
         closeSettingsModal();
-        
+
     } catch (error) {
         console.error('Settings save error:', error);
         toast.show('Failed to save settings: ' + error.message, 'error');
@@ -975,7 +933,7 @@ function loadChatHistory() {
             if (savedHistory) {
                 state.chatHistory = JSON.parse(savedHistory);
                 state.totalHistoryPages = Math.ceil(state.chatHistory.length / MESSAGES_PER_PAGE);
-                
+
                 // Only load the most recent page initially
                 loadHistoryPage(state.totalHistoryPages - 1);
             }
@@ -988,16 +946,16 @@ function loadChatHistory() {
 function loadHistoryPage(pageNumber) {
     // Clear current chat
     elements.chatMessages.innerHTML = '';
-    
+
     const start = pageNumber * MESSAGES_PER_PAGE;
     const end = Math.min(start + MESSAGES_PER_PAGE, state.chatHistory.length);
-    
+
     // Load only messages for current page
     const pageMessages = state.chatHistory.slice(start, end);
     pageMessages.forEach(msg => {
         addMessageToChat(msg.type, msg.content, false); // false = don't scroll
     });
-    
+
     state.historyPage = pageNumber;
     updatePaginationControls();
 }
@@ -1005,24 +963,24 @@ function loadHistoryPage(pageNumber) {
 function updatePaginationControls() {
     const paginationContainer = document.getElementById('pagination-controls');
     if (!paginationContainer) return;
-    
+
     paginationContainer.innerHTML = '';
-    
+
     if (state.totalHistoryPages <= 1) return;
-    
+
     const prevBtn = document.createElement('button');
     prevBtn.textContent = '← Previous';
     prevBtn.disabled = state.historyPage === 0;
     prevBtn.onclick = () => loadHistoryPage(state.historyPage - 1);
-    
+
     const nextBtn = document.createElement('button');
     nextBtn.textContent = 'Next →';
     nextBtn.disabled = state.historyPage === state.totalHistoryPages - 1;
     nextBtn.onclick = () => loadHistoryPage(state.historyPage + 1);
-    
+
     const pageInfo = document.createElement('span');
     pageInfo.textContent = `Page ${state.historyPage + 1} of ${state.totalHistoryPages}`;
-    
+
     paginationContainer.append(prevBtn, pageInfo, nextBtn);
 }
 
@@ -1032,7 +990,7 @@ function addMessageToChat(type, content, shouldScroll = true) {
     const contentElement = messageElement.querySelector('.message-content');
     const processedContent = processMessageContent(content);
     contentElement.innerHTML = processedContent;
-    
+
     if (shouldScroll) {
         requestAnimationFrame(() => {
             elements.chatMessages.scrollTo({
@@ -1057,11 +1015,11 @@ function saveChatHistory() {
             if (state.chatHistory.length > MAX_HISTORY_LENGTH) {
                 state.chatHistory = state.chatHistory.slice(-MAX_HISTORY_LENGTH);
             }
-            
+
             // Remove oldest conversations if total conversations exceeds limit
             const conversations = [];
             let currentConversation = [];
-            
+
             state.chatHistory.forEach(msg => {
                 currentConversation.push(msg);
                 if (msg.type === 'system' && msg.content.includes('Hello! I\'m CTFBot')) {
@@ -1069,17 +1027,17 @@ function saveChatHistory() {
                     currentConversation = [];
                 }
             });
-            
+
             if (currentConversation.length > 0) {
                 conversations.push(currentConversation);
             }
-            
+
             while (conversations.length > MAX_CONVERSATIONS) {
                 conversations.shift(); // Remove oldest conversation
             }
-            
+
             state.chatHistory = conversations.flat();
-            
+
             localStorage.setItem('ctfbot_chat_history', JSON.stringify(state.chatHistory));
         } catch (e) {
             console.error('Error saving chat history:', e);
@@ -1096,7 +1054,7 @@ function saveChatHistory() {
 function clearOldestConversation() {
     const conversations = [];
     let currentConversation = [];
-    
+
     state.chatHistory.forEach(msg => {
         currentConversation.push(msg);
         if (msg.type === 'system' && msg.content.includes('Hello! I\'m CTFBot')) {
@@ -1104,11 +1062,11 @@ function clearOldestConversation() {
             currentConversation = [];
         }
     });
-    
+
     if (currentConversation.length > 0) {
         conversations.push(currentConversation);
     }
-    
+
     if (conversations.length > 0) {
         conversations.shift(); // Remove oldest conversation
         state.chatHistory = conversations.flat();
@@ -1278,7 +1236,7 @@ function updateModelSelect() {
     const modelSelects = document.querySelectorAll('#model-select');
     modelSelects.forEach(select => {
         select.innerHTML = '';
-        
+
         state.availableModels.forEach(model => {
             const option = document.createElement('option');
             option.value = model.id;
@@ -1287,24 +1245,12 @@ function updateModelSelect() {
             option.selected = model.id === state.selectedModel;
             select.appendChild(option);
         });
-        
+
         // Enable/disable based on whether we have models
         select.disabled = state.availableModels.length === 0;
-        
+
         // Update the API URL for the selected model
         updateApiUrl();
-    });
-}
-
-// Add a new function check on model selection change
-if (elements.modelSelect) {
-    elements.modelSelect.addEventListener('change', (e) => {
-        const selectedValue = e.target.value;
-        if (selectedValue !== state.selectedModel) {
-            state.selectedModel = selectedValue;
-            updateApiUrl();
-            toast.show(`Model changed to ${selectedValue}`, 'info');
-        }
     });
 }
 
