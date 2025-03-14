@@ -33,6 +33,65 @@ const state = {
     totalHistoryPages: 0 // Total number of history pages
 };
 
+// Define elements object to store references to DOM elements
+const elements = {
+    chatMessages: document.getElementById('chat-messages'),
+    welcomeScreen: document.getElementById('welcome-screen'),
+    messageInput: document.getElementById('message-input'),
+    assistanceType: document.getElementById('assistance-type'),
+    apiKeyInput: document.getElementById('api-key'),
+    apiKeyNotice: document.getElementById('api-key-notice'),
+    settingsModal: document.getElementById('settings-modal'),
+    themeButtons: document.querySelectorAll('.theme-btn'),
+    historyToggle: document.getElementById('history-toggle'),
+    sendBtn: document.getElementById('send-btn'),
+    typingIndicator: document.getElementById('typing-indicator')
+};
+
+// Add event listener to send button
+if (elements.sendBtn) {
+    elements.sendBtn.addEventListener('click', async () => {
+        const message = elements.messageInput.value.trim();
+        if (message) {
+            await sendMessage(message);
+            elements.messageInput.value = '';
+            adjustTextareaHeight();
+        }
+    });
+}
+
+// Add event listener to message input for Enter key
+if (elements.messageInput) {
+    elements.messageInput.addEventListener('keydown', async (event) => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            const message = elements.messageInput.value.trim();
+            if (message) {
+                await sendMessage(message);
+                elements.messageInput.value = '';
+                adjustTextareaHeight();
+            }
+        }
+    });
+}
+
+// Function to adjust the height of the textarea
+function adjustTextareaHeight() {
+    if (elements.messageInput) {
+        elements.messageInput.style.height = 'auto';
+        elements.messageInput.style.height = `${elements.messageInput.scrollHeight}px`;
+    }
+}
+
+// Function to display a message in the chat
+function displayMessage(content, isUser = true) {
+    const messageElement = document.createElement('div');
+    messageElement.className = `message ${isUser ? 'message-user' : 'message-assistant'}`;
+    messageElement.innerHTML = `<div class="message-content">${content}</div>`;
+    elements.chatMessages.appendChild(messageElement);
+    elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+}
+
 // Hide welcome screen
 function startNewChat() {
     // Clear chat messages
@@ -348,20 +407,39 @@ async function fetchAvailableModels() {
 async function sendMessage(message) {
     if (!state.apiKey) return;
 
-    // Call the API
-    const response = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${state.apiKey}`
-        },
-        body: JSON.stringify({ messages: [{ content: message }] }),
-    });
+    // Display user message
+    displayMessage(message, true);
 
-    if (!response.ok) {
-        console.log('API response error');
+    // Set processing state
+    setProcessingState(true);
+
+    try {
+        // Call the API
+        const response = await fetch(API_URL, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${state.apiKey}`
+            },
+            body: JSON.stringify({ messages: [{ content: message }] }),
+        });
+
+        if (!response.ok) {
+            console.log('API response error');
+            displayMessage('Error: Unable to get a response from the API.', false);
+            return;
+        }
+
+        const data = await response.json();
+        const chatbotResponse = data.generations[0].generations[0].text;
+
+        // Display chatbot response
+        displayMessage(chatbotResponse, false);
+    } catch (error) {
+        console.log('Error sending message:', error);
+        displayMessage('Error: Unable to send message.', false);
+    } finally {
+        // Reset processing state
+        setProcessingState(false);
     }
-
-    const data = await response.json();
-    const chatbotResponse = data.generations[0].generations[0].text;
 }
