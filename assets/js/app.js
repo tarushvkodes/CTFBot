@@ -48,6 +48,47 @@ const elements = {
     typingIndicator: document.getElementById('typing-indicator')
 };
 
+// Add event listener to settings button
+if (elements.settingsBtn) {
+    elements.settingsBtn.addEventListener('click', openSettingsModal);
+}
+
+// Add event listener to close settings button
+if (elements.closeSettings) {
+    elements.closeSettings.addEventListener('click', closeSettingsModal);
+}
+
+// Add event listener to save settings button
+if (elements.saveSettings) {
+    elements.saveSettings.addEventListener('click', saveSettings);
+}
+
+// Function to save settings
+function saveSettings() {
+    const apiKey = elements.apiKeyInput.value.trim();
+    const saveHistory = elements.historyToggle.checked;
+    const theme = document.querySelector('.theme-btn.active').getAttribute('data-theme');
+
+    // Save settings to local storage
+    localStorage.setItem('ctfbot_api_key', apiKey);
+    localStorage.setItem('ctfbot_save_history', saveHistory);
+    localStorage.setItem('ctfbot_theme', theme);
+
+    // Update state
+    state.apiKey = apiKey;
+    state.saveHistory = saveHistory;
+    state.theme = theme;
+
+    // Apply theme
+    applyTheme();
+
+    // Close settings modal
+    closeSettingsModal();
+
+    // Show toast notification
+    toast.show('Settings saved successfully', 'success');
+}
+
 // Add event listener to send button
 if (elements.sendBtn) {
     elements.sendBtn.addEventListener('click', async () => {
@@ -443,3 +484,6 @@ async function sendMessage(message) {
         setProcessingState(false);
     }
 }
+
+// Initialize the application
+init();
