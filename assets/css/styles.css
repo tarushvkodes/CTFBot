@@ -1033,10 +1033,14 @@ footer {
     margin-top: auto;
     padding: 1rem;
     text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .copyright {
     color: var(--color-text-secondary);
     font-size: 0.875rem;
     margin: 0;
+    text-align: center;
 }
