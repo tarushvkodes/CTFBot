@@ -117,24 +117,58 @@ body {
 
 /* API status styles */
 .api-status {
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.25rem 0.75rem;
-    border-radius: 1rem;
-    background-color: var(--color-bg-tertiary);
-    font-size: 0.875rem;
+    padding: 4px;
+    border-radius: 50%;
+    background: var(--color-bg-tertiary);
+    cursor: help;
 }
 
 .status-indicator {
-    width: 8px;
-    height: 8px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
     background-color: var(--color-error);
+    transition: background-color var(--transition-quick);
 }
 
 .status-indicator.connected {
     background-color: var(--color-success);
+}
+
+/* Add tooltip on hover */
+.api-status:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 4px 8px;
+    background-color: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    z-index: 10;
+    margin-bottom: 8px;
+}
+
+/* Media query adjustments */
+@media (max-width: 768px) {
+    .api-status {
+        padding: 3px;
+    }
+    
+    .status-indicator {
+        width: 10px;
+        height: 10px;
+    }
+    
+    .nav-right {
+        gap: 0.5rem;
+    }
 }
 
 /* Main chat interface */
