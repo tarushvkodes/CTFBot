@@ -452,5 +452,43 @@ async function sendMessage(message) {
     }
 }
 
+// Toast functionality
+const toast = {
+    container: document.getElementById('toast-container'),
+    timeouts: new Map(),
+    
+    show(message, type = 'info', duration = 3000) {
+        const toastElement = document.createElement('div');
+        toastElement.className = `toast ${type}`;
+        toastElement.textContent = message;
+        
+        if (!this.container) {
+            this.container = document.createElement('div');
+            this.container.id = 'toast-container';
+            this.container.className = 'toast-container';
+            document.body.appendChild(this.container);
+        }
+        
+        // Add to DOM
+        this.container.appendChild(toastElement);
+        
+        // Trigger animation
+        requestAnimationFrame(() => {
+            toastElement.classList.add('show');
+        });
+        
+        // Set timeout to remove
+        const timeout = setTimeout(() => {
+            toastElement.classList.remove('show');
+            setTimeout(() => toastElement.remove(), 300);
+            this.timeouts.delete(toastElement);
+        }, duration);
+        
+        this.timeouts.set(toastElement, timeout);
+        
+        return toastElement;
+    }
+};
+
 // Initialize the application
 init();
