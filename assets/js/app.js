@@ -157,92 +157,45 @@ function startNewChat() {
     }
 }
 
-// Initialize the application
-// App loading state management
-const loadingStates = {
-    init: {
-        message: 'Initializing CTFBot...',
-        progress: 0
-    },
-    api: {
-        message: 'Checking API connection...',
-        progress: 25
-    },
-    history: {
-        message: 'Loading chat history...',
-        progress: 50
-    },
-    theme: {
-        message: 'Applying preferences...',
-        progress: 75
-    },
-    ready: {
-        message: 'Ready!',
-        progress: 100
-    }
-};
-
-// Initialize the application with loading states
+// Initialize the application with loading states - simplified
 async function init() {
     try {
-        // Create loading overlay
-        const loadingOverlay = createLoadingOverlay();
-        document.body.appendChild(loadingOverlay);
-        
-        // Update loading state - Init
-        updateLoadingState(loadingStates.init);
-        
         // Apply theme immediately
         applyTheme();
-        await delay(300);
-        
+
         // Check API status
-        updateLoadingState(loadingStates.api);
         if (state.apiKey) {
             elements.apiKeyInput.value = state.apiKey;
             const isApiValid = await checkApiKeyStatus();
             if (!isApiValid) {
-                // If API key is invalid, show the notice immediately
                 elements.welcomeScreen.style.display = 'none';
                 elements.apiKeyNotice.style.display = 'flex';
             }
         } else {
-            // No API key, show the notice immediately
             elements.welcomeScreen.style.display = 'none';
             elements.apiKeyNotice.style.display = 'flex';
         }
-        await delay(300);
-        
+
         // Load chat history
-        updateLoadingState(loadingStates.history);
         await loadChatHistory();
-        await delay(300);
-        
-        // Apply preferences
-        updateLoadingState(loadingStates.theme);
+
+        // Apply preferences and setup
         setupEventListeners();
         adjustTextareaHeight();
-        await delay(300);
-        
-        // Ready state
-        updateLoadingState(loadingStates.ready);
-        await delay(500);
-        
-        // Remove loading overlay with fade out
-        loadingOverlay.style.opacity = '0';
-        await delay(300);
-        loadingOverlay.remove();
-        
-        // Show welcome animation
-        elements.welcomeScreen.style.opacity = '0';
-        elements.welcomeScreen.style.display = 'block';
-        await delay(100);
-        elements.welcomeScreen.style.opacity = '1';
-        
+
+        // Show welcome screen immediately
+        requestAnimationFrame(() => {
+            elements.welcomeScreen.style.opacity = '0';
+            elements.welcomeScreen.style.display = 'block';
+            requestAnimationFrame(() => {
+              elements.welcomeScreen.style.opacity = '1';
+            });
+        });
+
     } catch (error) {
         console.error('Initialization error:', error);
         toast.show('Error initializing application: ' + error.message, 'error');
-        
+
         // Show API key notice if initialization fails
         if (elements.apiKeyNotice) {
             elements.welcomeScreen.style.display = 'none';
@@ -252,6 +205,7 @@ async function init() {
 }
 
 // Create loading overlay element
+// Remove loading states and overlay since we don't need them anymore
 function createLoadingOverlay() {
     const overlay = document.createElement('div');
     overlay.className = 'loading-overlay';
@@ -275,15 +229,12 @@ function createLoadingOverlay() {
 function updateLoadingState(state) {
     const progressFill = document.querySelector('.progress-fill');
     const loadingMessage = document.querySelector('.loading-message');
-    
+
     if (progressFill && loadingMessage) {
         progressFill.style.width = `${state.progress}%`;
         loadingMessage.textContent = state.message;
     }
 }
-
-// Helper function for creating delays
-const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 // Open settings modal
 function openSettingsModal() {
@@ -313,23 +264,23 @@ function openSettingsModal() {
 // Sets processing state to show/hide typing indicator
 function setProcessingState(isProcessing) {
     state.isProcessing = isProcessing;
-    
+
     // Show/hide typing indicator and loading indicator
     const loadingIndicator = document.getElementById('loading-indicator');
     if (loadingIndicator) {
         loadingIndicator.style.display = isProcessing ? 'flex' : 'none';
     }
-    
+
     // Show/hide typing indicator
     if (elements.typingIndicator) {
         elements.typingIndicator.style.display = isProcessing ? 'flex' : 'none';
     }
-    
+
     // Enable/disable send button
     if (elements.sendBtn) {
         elements.sendBtn.disabled = isProcessing;
     }
-    
+
     // Enable/disable message input
     if (elements.messageInput) {
         elements.messageInput.disabled = isProcessing;
@@ -403,7 +354,7 @@ async function checkApiKeyStatus() {
     try {
         // Make a lightweight request to the API to check auth
         const response = await fetch(`${API_URL}/models?key=${state.apiKey}`);
-        
+
         if (!response.ok) {
             const errorData = await response.json();
             const errorMessage = errorData.error?.message || `Error ${response.status}: ${response.statusText}`;
@@ -411,10 +362,10 @@ async function checkApiKeyStatus() {
             console.error('API key validation error:', errorMessage); // Log error
             return false;
         }
-        
+
         // If we got here, API key is valid
         updateApiStatus(true);
-        
+
         // Hide the API key notice if it was showing
         if (elements.apiKeyNotice) {
             elements.apiKeyNotice.style.display = 'none';
@@ -422,9 +373,9 @@ async function checkApiKeyStatus() {
 
         // Fetch available models if API key is valid
         await fetchAvailableModels();
-        
+
         return true;
-        
+
     } catch (error) {
         updateApiStatus(false, error.message);
         console.error('Error checking API key status:', error); // Log error
@@ -436,7 +387,7 @@ async function checkApiKeyStatus() {
 async function fetchAvailableModels() {
     try {
         const response = await fetch(`${API_URL}/models?key=${state.apiKey}`);
-        
+
         const result = await response.json();
         return result.models;
     } catch (error) {
