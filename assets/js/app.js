@@ -409,6 +409,7 @@ async function checkApiKeyStatus() {
             const errorData = await response.json();
             const errorMessage = errorData.error?.message || `Error ${response.status}: ${response.statusText}`;
             updateApiStatus(false, errorMessage);
+            console.error('API key validation error:', errorMessage); // Log error
             return false;
         }
         
@@ -427,6 +428,7 @@ async function checkApiKeyStatus() {
         
     } catch (error) {
         updateApiStatus(false, error.message);
+        console.error('Error checking API key status:', error); // Log error
         return false;
     }
 }
