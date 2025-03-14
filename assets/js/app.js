@@ -307,25 +307,24 @@ function updateLoadingState(state) {
 function openSettingsModal() {
     if (!elements.settingsModal) return;
     
-    // Populate current settings
+    // Clear any previous settings
     elements.apiKeyInput.value = state.apiKey || '';
     elements.historyToggle.checked = state.saveHistory;
     
-    // Highlight the current theme button
-    if (elements.themeButtons) {
-        elements.themeButtons.forEach(btn => {
-            btn.classList.toggle('active', btn.getAttribute('data-theme') === state.theme);
-        });
-    }
+    // Update theme buttons
+    elements.themeButtons.forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-theme') === state.theme);
+    });
     
-    // Show the modal
-    elements.settingsModal.classList.add('show');
+    // Add modal show class
+    requestAnimationFrame(() => {
+        elements.settingsModal.classList.add('show');
+        // Focus on API key input
+        elements.apiKeyInput.focus();
+    });
     
     // Prevent background scrolling
     document.body.style.overflow = 'hidden';
-    
-    // Focus on API key input for better UX
-    setTimeout(() => elements.apiKeyInput.focus(), 100);
 }
 
 // Sets processing state to show/hide typing indicator
@@ -358,12 +357,26 @@ function setProcessingState(isProcessing) {
 function closeSettingsModal() {
     if (!elements.settingsModal) return;
     
-    // Hide the modal
+    // Remove modal show class
     elements.settingsModal.classList.remove('show');
     
     // Restore background scrolling
     document.body.style.overflow = '';
 }
+
+// Close modal when clicking outside
+elements.settingsModal.addEventListener('click', (e) => {
+    if (e.target === elements.settingsModal) {
+        closeSettingsModal();
+    }
+});
+
+// Close modal when pressing Escape
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && elements.settingsModal.classList.contains('show')) {
+        closeSettingsModal();
+    }
+});
 
 // Apply the current theme
 function applyTheme() {

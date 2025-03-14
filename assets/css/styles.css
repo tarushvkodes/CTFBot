@@ -513,9 +513,9 @@ body {
     width: 100%;
     height: 100%;
     background-color: rgba(0, 0, 0, 0.5);
-    z-index: 1000;
+    z-index: 2000;
     opacity: 0;
-    transition: opacity 0.3s ease-in-out;
+    transition: opacity var(--transition-normal);
 }
 
 .modal.show {
@@ -526,34 +526,39 @@ body {
 }
 
 .modal-content {
-    background: var(--background-color);
-    border-radius: 8px;
+    background-color: var(--color-bg-primary);
+    border-radius: 1rem;
     padding: 1.5rem;
     width: 90%;
     max-width: 500px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     transform: scale(0.9);
-    transition: transform 0.3s ease-in-out;
+    transition: transform var(--transition-normal);
+    border: 1px solid var(--color-border);
 }
 
 .modal.show .modal-content {
     transform: scale(1);
 }
 
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
+.close-btn {
+    background: none;
+    border: none;
+    color: var(--color-text-secondary);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    line-height: 1;
+    transition: all var(--transition-quick);
 }
 
-.modal-footer {
-    margin-top: 1.5rem;
-    display: flex;
-    justify-content: flex-end;
-    gap: 1rem;
+.close-btn:hover {
+    background-color: var(--color-bg-tertiary);
+    color: var(--color-text-primary);
 }
 
+/* Settings Modal Input Fields */
 .settings-group {
     margin-bottom: 1.5rem;
     width: 100%;
@@ -568,25 +573,22 @@ body {
 .settings-group input {
     width: 100%;
     padding: 0.75rem;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    background: var(--input-bg);
-    color: var(--text-color);
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    background-color: var(--color-bg-secondary);
+    color: var(--color-text-primary);
     font-size: 1rem;
-    transition: border-color 0.2s;
+    transition: all var(--transition-quick);
 }
 
 .settings-group input:focus {
-    border-color: var(--primary-color);
+    border-color: var(--color-primary);
     outline: none;
-    box-shadow: 0 0 0 2px var(--primary-color-transparent);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
 }
 
 .settings-group small {
-    display: block;
-    margin-top: 0.5rem;
-    color: var(--text-secondary);
-    font-size: 0.875rem;
+    color: var(--color-text-secondary);
 }
 
 .theme-options {
