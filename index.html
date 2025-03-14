@@ -112,6 +112,21 @@
                         <input type="password" id="api-key" placeholder="Enter your API key">
                         <small>Your API key is stored locally and never sent to our servers.</small>
                     </div>
+                    <div class="settings-group">
+                        <label>Theme</label>
+                        <div class="theme-options">
+                            <button class="theme-btn" data-theme="light">Light</button>
+                            <button class="theme-btn" data-theme="dark">Dark</button>
+                            <button class="theme-btn active" data-theme="system">System</button>
+                        </div>
+                    </div>
+                    <div class="settings-group">
+                        <label class="switch">
+                            <input type="checkbox" id="history-toggle" checked>
+                            <span class="slider round"></span>
+                        </label>
+                        <label for="history-toggle">Save Chat History</label>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button id="save-settings" class="btn-primary">Save Settings</button>

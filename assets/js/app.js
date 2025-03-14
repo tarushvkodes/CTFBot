@@ -103,80 +103,146 @@ function saveSettings() {
     toast.show('Settings saved successfully', 'success');
 }
 
-// Add event listener to send button
-if (elements.sendBtn) {
-    elements.sendBtn.addEventListener('click', async () => {
-        const message = elements.messageInput.value.trim();
-        if (message) {
-            await sendMessage(message);
-            elements.messageInput.value = '';
-            adjustTextareaHeight();
-        }
-    });
-}
+// Send a message to the Gemini API and add it to chat
+async function sendMessage(message) {
+    if (!message.trim()) {
+        return; // Don't send empty messages
+    }
 
-// Add event listener to message input for Enter key
-if (elements.messageInput) {
-    elements.messageInput.addEventListener('keydown', async (event) => {
-        if (event.key === 'Enter' && !event.shiftKey) {
-            event.preventDefault();
-            const message = elements.messageInput.value.trim();
-            if (message) {
-                await sendMessage(message);
-                elements.messageInput.value = '';
-                adjustTextareaHeight();
-            }
-        }
-    });
-}
+    if (!state.apiKey) {
+        toast.show('API key required', 'error');
+        elements.apiKeyNotice.style.display = 'flex';
+        return;
+    }
 
-// Function to adjust the height of the textarea
-function adjustTextareaHeight() {
+    // Clear input and adjust height immediately
     if (elements.messageInput) {
-        elements.messageInput.style.height = 'auto';
-        elements.messageInput.style.height = `${elements.messageInput.scrollHeight}px`;
+        elements.messageInput.value = '';
+        adjustTextareaHeight();
+        elements.messageInput.focus(); // Keep focus on input
+    }
+
+    // Display user message
+    displayMessage(message, true);
+
+    // Set processing state
+    setProcessingState(true);
+
+    try {
+        // Call the API
+        const response = await fetch(`${API_URL}?key=${state.apiKey}`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{
+                        text: `${DEFAULT_SYSTEM_PROMPT}\n\nUser: ${message}`
+                    }]
+                }],
+                generationConfig: {
+                    temperature: 0.7,
+                    topK: 40,
+                    topP: 0.95,
+                    maxOutputTokens: 2048,
+                },
+            }),
+            signal: AbortSignal.timeout(30000), // 30 second timeout
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error?.message || `API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
+            throw new Error('Invalid response format from API');
+        }
+
+        const botResponse = data.candidates[0].content.parts[0].text;
+        displayMessage(botResponse, false);
+
+        // Save to history if enabled
+        if (state.saveHistory) {
+            state.chatHistory.push({
+                timestamp: Date.now(),
+                message,
+                response: botResponse
+            });
+            saveChatHistory();
+        }
+
+    } catch (error) {
+        console.error('Error sending message:', error);
+        displayMessage('Error: ' + error.message, false, true);
+        toast.show('Failed to get response from API', 'error');
+    } finally {
+        setProcessingState(false);
     }
 }
 
 // Function to display a message in the chat
-function displayMessage(content, isUser = true) {
+function displayMessage(content, isUser = true, isError = false) {
     const messageElement = document.createElement('div');
     messageElement.className = `message ${isUser ? 'message-user' : 'message-assistant'}`;
-    messageElement.innerHTML = `<div class="message-content">${content}</div>`;
-    elements.chatMessages.appendChild(messageElement);
-    elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+    
+    const contentDiv = document.createElement('div');
+    contentDiv.className = `message-content ${isError ? 'error' : ''}`;
+    contentDiv.textContent = content;
+    
+    messageElement.appendChild(contentDiv);
+    
+    if (elements.chatMessages) {
+        elements.chatMessages.appendChild(messageElement);
+        elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+    }
 }
 
-// Hide welcome screen
-function startNewChat() {
-    // Clear chat messages
-    elements.chatMessages.innerHTML = '';
-    
-    // Show welcome screen
-    if (elements.welcomeScreen) {
-        elements.welcomeScreen.style.display = 'block';
-    }
-    
-    // Clear chat history
-    state.chatHistory = [];
-    
-    // Clear input field
-    if (elements.messageInput) {
-        elements.messageInput.value = '';
+// Update the input field event listeners
+function setupMessageInput() {
+    if (!elements.messageInput || !elements.sendBtn) return;
+
+    // Handle send button click
+    elements.sendBtn.addEventListener('click', () => {
+        const message = elements.messageInput.value.trim();
+        if (message) {
+            sendMessage(message);
+        }
+    });
+
+    // Handle Enter key (but allow Shift+Enter for new lines)
+    elements.messageInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            const message = elements.messageInput.value.trim();
+            if (message) {
+                sendMessage(message);
+            }
+        }
+    });
+
+    // Auto-resize input field
+    elements.messageInput.addEventListener('input', () => {
         adjustTextareaHeight();
-    }
-    
-    // Reset assistance type to default
-    if (elements.assistanceType) {
-        elements.assistanceType.value = 'analyze';
-    }
+    });
 }
 
-// Initialize the application with loading states - simplified
+// Initialize event listeners
+function initEventListeners() {
+    setupMessageInput();
+    setupEventListeners(); // This sets up other event listeners we already have
+}
+
+// Initialize the application
 async function init() {
     try {
         // Apply theme immediately
         applyTheme();
+
+        // Set up all event listeners
+        initEventListeners();
 
         // Check API status
         if (state.apiKey) {
@@ -194,28 +260,14 @@ async function init() {
         // Load chat history
         await loadChatHistory();
 
-        // Apply preferences and setup
-        setupEventListeners();
+        // Initial textarea height adjustment
         adjustTextareaHeight();
-
-        // Show welcome screen immediately
-        requestAnimationFrame(() => {
-            elements.welcomeScreen.style.opacity = '0';
-            elements.welcomeScreen.style.display = 'block';
-            requestAnimationFrame(() => {
-              elements.welcomeScreen.style.opacity = '1';
-            });
-        });
 
     } catch (error) {
         console.error('Initialization error:', error);
         toast.show('Error initializing application: ' + error.message, 'error');
-
-        // Show API key notice if initialization fails
-        if (elements.apiKeyNotice) {
-            elements.welcomeScreen.style.display = 'none';
-            elements.apiKeyNotice.style.display = 'flex';
-        }
+        elements.welcomeScreen.style.display = 'none';
+        elements.apiKeyNotice.style.display = 'flex';
     }
 }
 
@@ -359,6 +411,73 @@ function toggleTheme() {
     toast.show(`Switched to ${newTheme} theme`, 'info');
 }
 
+// Update API status indicator and text
+function updateApiStatus(isConnected, message = '') {
+    const indicator = document.getElementById('api-status-indicator');
+    const statusText = document.getElementById('api-status-text');
+    
+    if (indicator) {
+        indicator.classList.toggle('connected', isConnected);
+    }
+    
+    if (statusText) {
+        statusText.textContent = isConnected ? 'Connected' : message || 'Disconnected';
+    }
+}
+
+// Load chat history from localStorage
+async function loadChatHistory() {
+    if (!state.saveHistory) return;
+    
+    try {
+        const savedHistory = localStorage.getItem('ctfbot_chat_history');
+        if (savedHistory) {
+            state.chatHistory = JSON.parse(savedHistory);
+            state.totalHistoryPages = Math.ceil(state.chatHistory.length / MESSAGES_PER_PAGE);
+        }
+    } catch (error) {
+        console.error('Error loading chat history:', error);
+        toast.show('Error loading chat history', 'error');
+    }
+}
+
+// Save chat history to localStorage
+function saveChatHistory() {
+    if (!state.saveHistory) return;
+    
+    try {
+        localStorage.setItem('ctfbot_chat_history', JSON.stringify(state.chatHistory));
+    } catch (error) {
+        console.error('Error saving chat history:', error);
+        toast.show('Error saving chat history', 'error');
+    }
+}
+
+// Setup event listeners for the application
+function setupEventListeners() {
+    // Theme button listeners
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            state.theme = btn.getAttribute('data-theme');
+            applyTheme();
+        });
+    });
+
+    // Message input auto-resize
+    if (elements.messageInput) {
+        elements.messageInput.addEventListener('input', adjustTextareaHeight);
+    }
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+        if (elements.messageInput) {
+            adjustTextareaHeight();
+        }
+    });
+}
+
 // Check API key status
 async function checkApiKeyStatus() {
     if (!state.apiKey) {
@@ -408,47 +527,6 @@ async function fetchAvailableModels() {
     } catch (error) {
         console.log('Error fetching models', error);
         return [];
-    }
-}
-
-// Send a message to the Gemini API and add it to chat
-async function sendMessage(message) {
-    if (!state.apiKey) return;
-
-    // Display user message
-    displayMessage(message, true);
-
-    // Set processing state
-    setProcessingState(true);
-
-    try {
-        // Call the API
-        const response = await fetch(API_URL, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${state.apiKey}`
-            },
-            body: JSON.stringify({ messages: [{ content: message }] }),
-        });
-
-        if (!response.ok) {
-            console.log('API response error');
-            displayMessage('Error: Unable to get a response from the API.', false);
-            return;
-        }
-
-        const data = await response.json();
-        const chatbotResponse = data.generations[0].generations[0].text;
-
-        // Display chatbot response
-        displayMessage(chatbotResponse, false);
-    } catch (error) {
-        console.log('Error sending message:', error);
-        displayMessage('Error: Unable to send message.', false);
-    } finally {
-        // Reset processing state
-        setProcessingState(false);
     }
 }
 
