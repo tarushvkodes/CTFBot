@@ -1032,7 +1032,7 @@ pre.line-numbers {
 footer {
     margin-top: auto;
     padding: 1rem;
-    text-align: center;
+    width: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -1042,5 +1042,7 @@ footer {
     color: var(--color-text-secondary);
     font-size: 0.875rem;
     margin: 0;
+    width: 100%;
     text-align: center;
+    display: block;
 }
