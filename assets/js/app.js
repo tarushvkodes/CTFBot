@@ -4,7 +4,7 @@
 // Constants and configuration
 const DEFAULT_API_KEY = ""; // No default API key - users must provide their own
 const API_BASE_URL = "https://generativelanguage.googleapis.com/v1"; // Base URL for Gemini API
-const API_URL = `${API_BASE_URL}/models/gemini-pro:generateContent`; // Using gemini-pro model endpoint
+const API_URL = `${API_BASE_URL}/models/gemini-2.0-flash:generateContent`; // Using gemini-2.0-flash model
 const MAX_HISTORY_LENGTH = 20; // Maximum number of messages to keep in history
 const MAX_CONVERSATIONS = 50; // Maximum number of conversations to store
 const MESSAGES_PER_PAGE = 50; // Number of messages to load at once
@@ -350,7 +350,7 @@ async function fetchAvailableModels() {
         if (data.models && Array.isArray(data.models)) {
             // Filter for Gemini models only and format them
             state.availableModels = data.models
-                .filter(model => model.name.includes('gemini'))
+                .filter(model => model.name.includes('gemini-2.0-flash'))
                 .map(model => ({
                     id: model.name.split('/').pop(),
                     name: formatModelName(model.name),
@@ -534,48 +534,7 @@ async function handleSendMessage() {
     }
 
     try {
-        setProcessingState(true);
-        console.log('Sending message:', messageText); // Debug log
-
-        // Format message based on selected assistance type
-        const formattedMessage = formatQueryForAssistanceType(
-            messageText,
-            elements.assistanceType ? elements.assistanceType.value : 'general'
-        );
-
-        // Add user message to chat
-        addMessageToChat('user', messageText);
-        state.chatHistory.push({ type: 'user', content: messageText });
-
-        // Get AI response
-        const response = await sendToGemini(formattedMessage);
-        console.log('Received response:', response); // Debug log
-
-        // Add AI response to chat
-        addMessageToChat('assistant', response);
-        state.chatHistory.push({ type: 'assistant', content: response });
-
-        // Save chat history if enabled
-        if (state.saveHistory) {
-            saveChatHistory();
-            updateChatHistoryList();
-        }
-
-        // Clear input and adjust height
-        elements.messageInput.value = '';
-        adjustTextareaHeight();
-
-        // Scroll to bottom with smooth animation
-        requestAnimationFrame(() => {
-            elements.chatMessages.scrollTo({
-                top: elements.chatMessages.scrollHeight,
-                behavior: 'smooth'
-            });
-        });
-
-    } catch (error) {
-        console.error('Error sending message:', error);
-        addMessageToChat('system', `Error: ${error.message}`);
+        sendMessageToAPI(messageText);
     } finally {
         setProcessingState(false);
         // Re-enable input after processing
@@ -583,6 +542,47 @@ async function handleSendMessage() {
             elements.messageInput.focus();
         }
     }
+}
+
+async function sendMessageToAPI(messageText) {
+    setProcessingState(true);
+    console.log('Sending message:', messageText); // Debug log
+
+    // Format message based on selected assistance type
+    const formattedMessage = formatQueryForAssistanceType(
+        messageText,
+        elements.assistanceType ? elements.assistanceType.value : 'general'
+    );
+
+    // Add user message to chat
+    addMessageToChat('user', messageText);
+    state.chatHistory.push({ type: 'user', content: messageText });
+
+    // Get AI response
+    const response = await sendToGemini(formattedMessage);
+    console.log('Received response:', response); // Debug log
+
+    // Add AI response to chat
+    addMessageToChat('assistant', response);
+    state.chatHistory.push({ type: 'assistant', content: response });
+
+    // Save chat history if enabled
+    if (state.saveHistory) {
+        saveChatHistory();
+        updateChatHistoryList();
+    }
+
+    // Clear input and adjust height
+    elements.messageInput.value = '';
+    adjustTextareaHeight();
+
+    // Scroll to bottom with smooth animation
+    requestAnimationFrame(() => {
+        elements.chatMessages.scrollTo({
+            top: elements.chatMessages.scrollHeight,
+            behavior: 'smooth'
+        });
+    });
 }
 
 // Send message to Gemini API
