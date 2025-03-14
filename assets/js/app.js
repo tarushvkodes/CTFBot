@@ -44,8 +44,23 @@ const elements = {
     themeButtons: document.querySelectorAll('.theme-btn'),
     historyToggle: document.getElementById('history-toggle'),
     sendBtn: document.getElementById('send-btn'),
-    typingIndicator: document.getElementById('typing-indicator')
+    typingIndicator: document.getElementById('typing-indicator'),
+    settingsBtn: document.getElementById('settings-btn'),
+    closeSettings: document.getElementById('close-settings'),
+    saveSettings: document.getElementById('save-settings'),
+    setupApiKey: document.getElementById('setup-api-key')
 };
+
+// Add event listener to setup API key button
+if (elements.setupApiKey) {
+    elements.setupApiKey.addEventListener('click', () => {
+        openSettingsModal();
+        // Focus on the API key input
+        if (elements.apiKeyInput) {
+            elements.apiKeyInput.focus();
+        }
+    });
+}
 
 // Add event listener to settings button
 if (elements.settingsBtn) {
