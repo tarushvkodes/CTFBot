@@ -1,277 +1,214 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="system">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CTFBot - Real-Time CTF Challenge Assistant</title>
-    <meta name="description" content="CTFBot is an AI-powered assistant for CTF competitions that helps analyze challenges, provide hints, and suggest solution approaches.">
-    <meta name="author" content="tarushvkodes">
-    
-    <!-- Critical CSS inline to prevent FOUC -->
-    <style>
-        :root { --color-bg-primary: #ffffff; }
-        [data-theme="dark"] { --color-bg-primary: #1e1e1e; }
-        body { 
-            background-color: var(--color-bg-primary);
-            margin: 0;
-            opacity: 0;
-            animation: fadeIn 0.3s ease forwards;
-        }
-        @keyframes fadeIn {
-            to { opacity: 1; }
-        }
-    </style>
-    
-    <!-- PrismJS for syntax highlighting -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.css" rel="stylesheet">
-    
-    <!-- Preload key resources -->
-    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" as="style">
-    <link rel="preload" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js" as="script">
-    
-    <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
-    
-    <!-- Preconnect to external resources -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preload" href="assets/css/styles.css" as="style">
-    <link rel="preload" href="assets/js/app.js" as="script">
-    
-    <!-- Favicon -->
-    <link rel="icon" href="assets/images/ctfbot-logo.svg" type="image/svg+xml">
-    
-    <!-- Font - Atkinson Hyperlegible -->
-    <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
-    
-    <!-- CSS -->
+    <title>CTFBot - Your AI CTF Assistant</title>
     <link rel="stylesheet" href="assets/css/styles.css">
+    <link rel="icon" type="image/svg+xml" href="assets/images/ctfbot-logo.svg">
 </head>
 <body>
-    <div class="app-container">
-        <header>
-            <nav class="nav-left">
-                <!-- Move hamburger menu button to the left -->
-                <button id="history-menu-btn" class="nav-btn" aria-label="Chat History">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="3" y1="12" x2="21" y2="12"></line>
-                        <line x1="3" y1="6" x2="21" y2="6"></line>
-                        <line x1="3" y1="18" x2="21" y2="18"></line>
-                    </svg>
-                </button>
-            </nav>
-            <div class="logo-container">
-                <img src="assets/images/ctfbot-logo.svg" alt="CTFBot Logo" id="logo">
-                <h1>CTFBot</h1>
+    <!-- API Key Notice -->
+    <div id="api-key-notice" class="api-key-notice hidden">
+        <div class="notice-content">
+            <h3>🔑 API Key Required</h3>
+            <p>Please set up your Google Gemini API key to start using CTFBot.</p>
+            <button id="setup-api-key" class="primary-btn">Set Up API Key</button>
+            <a href="#" id="get-api-key-instructions">How to get an API key?</a>
+            <div id="api-key-instructions" style="display: none;">
+                <ol>
+                    <li>Visit the <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener">Google AI Studio</a></li>
+                    <li>Sign in with your Google account</li>
+                    <li>Click "Create API key" if you don't have one</li>
+                    <li>Copy your API key</li>
+                    <li>Paste it in CTFBot's settings</li>
+                </ol>
             </div>
-            <nav class="nav-right">
-                <button id="new-chat-btn" class="nav-btn" aria-label="Start a new chat">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M12 5v14M5 12h14"></path>
-                    </svg>
-                    <span>New Chat</span>
-                </button>
-                <button id="theme-toggle" class="nav-btn" aria-label="Toggle dark/light theme">
-                    <svg class="moon-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-                    </svg>
-                    <svg class="sun-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="5"></circle>
-                        <line x1="12" y1="1" x2="12" y2="3"></line>
-                        <line x1="12" y1="21" x2="12" y2="23"></line>
-                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                        <line x1="1" y1="12" x2="3" y2="12"></line>
-                        <line x1="21" y1="12" x2="23" y2="12"></line>
-                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
-                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <button id="history-menu-btn" class="icon-btn" aria-label="Chat history">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c-2.5 0-4.5-5.5-4.5-9s2-9 4.5-9c2.5 0 4.5 5.5 4.5 9s-2 9-4.5 9Z"/>
                     </svg>
                 </button>
-                <button id="settings-btn" class="nav-btn" aria-label="Settings">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="3"></circle>
-                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                <div class="logo">
+                    <img src="assets/images/ctfbot-logo.svg" alt="CTFBot Logo" class="logo-img">
+                    <span class="logo-text">CTFBot</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div id="api-status" class="api-status">
+                    <span id="api-status-indicator" class="status-indicator"></span>
+                    <span id="api-status-text">Checking API...</span>
+                </div>
+                <button id="theme-toggle" class="icon-btn" aria-label="Toggle theme">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"/>
+                        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
                     </svg>
                 </button>
-            </nav>
+                <button id="settings-btn" class="icon-btn" aria-label="Settings">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                    </svg>
+                </button>
+            </div>
         </header>
 
-        <main>
-            <!-- Sidebar overlay for mobile -->
-            <div class="sidebar-overlay"></div>
-            
-            <!-- Chat History Sidebar -->
-            <div class="chat-history-sidebar" id="chat-history-sidebar">
-                <div class="chat-history-header">
-                    <h3>Chat History</h3>
-                    <button class="close-history-btn" id="close-history-btn">&times;</button>
-                </div>
-                <div class="chat-history-list" id="chat-history-list">
-                    <!-- Chat history items will be added here dynamically -->
-                </div>
+        <!-- Chat History Sidebar -->
+        <div id="chat-history-sidebar" class="chat-history-sidebar">
+            <div class="sidebar-header">
+                <h2>Chat History</h2>
+                <button id="close-history-btn" class="icon-btn" aria-label="Close history">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
             </div>
+            <div id="chat-history-list" class="chat-history-list"></div>
+        </div>
+        <div class="sidebar-overlay"></div>
 
-            <div class="chat-interface">
-                <!-- Welcome screen -->
-                <div class="welcome-screen" id="welcome-screen">
-                    <h2>Welcome to CTFBot</h2>
-                    <div class="model-badge">
-                        Powered by <strong>Google Gemini API</strong>
+        <!-- Main Chat Area -->
+        <main class="chat-container">
+            <div id="chat-messages" class="chat-messages">
+                <!-- Welcome Screen -->
+                <div id="welcome-screen" class="welcome-screen">
+                    <img src="assets/images/ctfbot-logo.svg" alt="CTFBot Logo" class="welcome-logo">
+                    <h1>Welcome to CTFBot</h1>
+                    <div class="welcome-info">
+                        <p>Powered by Google Gemini API</p>
+                        <p>Your AI assistant for Capture The Flag competitions</p>
                     </div>
-                    <p>Your AI assistant for Capture The Flag competitions</p>
-                    
-                    <div class="features-grid">
+                    <div class="feature-grid">
                         <div class="feature-card">
-                            <div class="feature-icon">🧠</div>
+                            <span class="feature-icon">🧠</span>
                             <h3>Challenge Analysis</h3>
                             <p>Upload challenge files or descriptions for detailed analysis</p>
                         </div>
                         <div class="feature-card">
-                            <div class="feature-icon">💡</div>
+                            <span class="feature-icon">💡</span>
                             <h3>Smart Hints</h3>
                             <p>Get contextual hints without spoiling the challenge</p>
                         </div>
                         <div class="feature-card">
-                            <div class="feature-icon">🛠️</div>
-                            <div class="feature-icon">🛠️</div>
+                            <span class="feature-icon">🛠️</span>
                             <h3>Tool Suggestions</h3>
                             <p>Receive recommendations on the best tools for each challenge</p>
                         </div>
                         <div class="feature-card">
-                            <div class="feature-icon">📚</div>
+                            <span class="feature-icon">📚</span>
                             <h3>Knowledge Base</h3>
                             <p>Access explanations of cybersecurity concepts relevant to your challenges</p>
                         </div>
                     </div>
                 </div>
-
-                <!-- API Key Required - Only shown when needed -->
-                <div class="api-key-notice" id="api-key-notice" style="display: none;">
-                    <div class="notice-icon">🔑</div>
-                    <div class="notice-content">
-                        <h3>API Key Required</h3>
-                        <p>CTFBot requires a Gemini API key to function. Get your free API key from Google AI Studio.</p>
-                        <button id="setup-api-key" class="btn-primary">Set up API Key</button>
+                <!-- Loading Indicator -->
+                <div id="loading-indicator" class="loading-indicator" style="display: none;">
+                    <div class="typing-indicator">
+                        <span></span>
+                        <span></span>
+                        <span></span>
                     </div>
                 </div>
+            </div>
 
-                <section class="chat-container">
-                    <div id="chat-messages">
-                        <!-- Messages will appear here -->
-                    </div>
-                    <div id="pagination-controls" class="pagination-controls">
-                        <!-- Pagination controls will be added here when needed -->
-                    </div>
-                    <div id="typing-indicator" style="display: none;">
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                        <div class="typing-dot"></div>
-                    </div>
-
-                    <div id="chat-input-container" class="chat-input-container">
-                        <div class="input-options">
-                            <div class="assistance-options">
-                                <select id="assistance-type" class="option-select">
-                                    <option value="analyze">Analyze Challenge</option>
-                                    <option value="hint">Give Hint</option>
-                                    <option value="approach">Suggest Approach</option>
-                                    <option value="explain">Explain Concept</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <div class="message-input-wrapper">
-                            <textarea id="message-input" placeholder="Describe your CTF challenge or ask a question..." rows="1"></textarea>
-                            <button id="send-btn" aria-label="Send message">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <line x1="22" y1="2" x2="11" y2="13"></line>
-                                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                </section>
+            <!-- Chat Input Area -->
+            <div class="chat-input-container">
+                <div class="chat-toolbar">
+                    <select id="assistance-type" class="assistance-select">
+                        <option value="analyze">Challenge Analysis</option>
+                        <option value="hint">Get Hint</option>
+                        <option value="approach">Suggest Approach</option>
+                        <option value="explain">Explain Concept</option>
+                    </select>
+                    <button id="upload-btn" class="secondary-btn" title="Upload files">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        <span>Upload</span>
+                    </button>
+                    <input type="file" id="file-upload" multiple style="display: none;">
+                </div>
+                <div class="input-wrapper">
+                    <textarea id="message-input" rows="1" placeholder="Describe your CTF challenge or ask a question..." aria-label="Message input"></textarea>
+                    <button id="send-btn" class="send-btn" aria-label="Send message">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="22" y1="2" x2="11" y2="13"/>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
         </main>
 
-        <footer>
-            <div class="api-status">
-                <span id="api-status-indicator"></span>
-                <span id="api-status-text">API Status: Checking...</span>
-            </div>
-            <div class="copyright">
-                &copy; Copyright Tarushv Kosgi 2025. All rights reserved.
-            </div>
-        </footer>
-    </div>
-
-    <!-- Settings Modal -->
-    <div class="modal" id="settings-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Settings</h3>
-                <button class="close-btn" id="close-settings">&times;</button>
-            </div>
-            <div class="modal-body" style="padding: 1rem;">
-                <div class="settings-group">
-                    <label for="api-key">Gemini API Key</label>
-                    <input type="password" id="api-key" placeholder="Enter your API key">
-                    <small>
-                        Your API key is stored locally and never sent to any server other than Google's API.<br>
-                        <a href="#" id="get-api-key-instructions">How to get a free Gemini API key</a>
-                    </small>
+        <!-- Settings Modal -->
+        <div id="settings-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Settings</h2>
+                    <button id="close-settings" class="icon-btn" aria-label="Close settings">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"/>
+                            <line x1="6" y1="6" x2="18" y2="18"/>
+                        </svg>
+                    </button>
                 </div>
-                <div class="api-key-instructions" id="api-key-instructions" style="display: none;">
-                    <h4>Getting your Gemini API Key:</h4>
-                    <ol>
-                        <li>Go to <a href="https://makersuite.google.com/app/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio</a></li>
-                        <li>Sign in with your Google account</li>
-                        <li>Click "Create API key" if you don't have one already</li>
-                        <li>Copy your API key and paste it here</li>
-                    </ol>
-                    <p>The API is free with generous usage limits suitable for CTF competitions!</p>
-                </div>
-                <div class="settings-group">
-                    <label>Theme</label>
-                    <div class="theme-options">
-                        <button class="theme-btn" data-theme="light">Light</button>
-                        <button class="theme-btn" data-theme="dark">Dark</button>
-                        <button class="theme-btn" data-theme="system">System</button>
+                <div class="modal-body">
+                    <div class="settings-section">
+                        <h3>API Settings</h3>
+                        <div class="form-group">
+                            <label for="api-key">Gemini API Key</label>
+                            <input type="password" id="api-key" placeholder="Enter your API key">
+                            <p class="help-text">Your API key is stored locally and never sent to our servers.</p>
+                        </div>
+                    </div>
+                    <div class="settings-section">
+                        <h3>Theme</h3>
+                        <div class="theme-buttons">
+                            <button class="theme-btn" data-theme="light">Light</button>
+                            <button class="theme-btn" data-theme="dark">Dark</button>
+                            <button class="theme-btn" data-theme="system">System</button>
+                        </div>
+                    </div>
+                    <div class="settings-section">
+                        <h3>Chat History</h3>
+                        <div class="form-group">
+                            <label class="toggle-label">
+                                <input type="checkbox" id="history-toggle">
+                                <span class="toggle-text">Save chat history</span>
+                            </label>
+                            <p class="help-text">Chat history is stored locally in your browser.</p>
+                        </div>
                     </div>
                 </div>
-                <div class="settings-group">
-                    <label for="history-toggle">Chat History</label>
-                    <label class="switch">
-                        <input type="checkbox" id="history-toggle" checked>
-                        <span class="slider round"></span>
-                    </label>
-                    <small>When enabled, your chat history is saved in your browser's local storage.</small>
+                <div class="modal-footer">
+                    <button id="save-settings" class="primary-btn">Save Settings</button>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button id="save-settings" class="btn-primary">Save Settings</button>
-            </div>
         </div>
+
+        <!-- Toast Container -->
+        <div class="toast-container"></div>
     </div>
 
-    <!-- Loading Indicator -->
-    <div id="loading-indicator" style="display: none;">
-        <div class="spinner"></div>
-        <p>Thinking...</p>
-    </div>
-    
-    <!-- PrismJS and plugins -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/toolbar/prism-toolbar.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-markup.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-cpp.min.js"></script>
-    <!-- Load JavaScript -->
+    <!-- Toast Container -->
+    <div class="toast-container"></div>
+
+    <footer class="app-footer">
+        <p>© Copyright Tarushv Kosgi 2025. All rights reserved.</p>
+    </footer>
+
     <script src="assets/js/app.js"></script>
 </body>
 </html>

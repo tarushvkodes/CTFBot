@@ -621,6 +621,72 @@ input:checked + .slider:before {
 
 /* API Key Notice */
 .api-key-notice {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    padding: 20px;
+}
+.api-key-notice.hidden {
+    display: none;
+}
+.notice-content {
+    background: var(--surface-1);
+    padding: 2rem;
+    border-radius: 8px;
+    max-width: 500px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+.notice-content h3 {
+    margin: 0 0 1rem;
+    color: var(--text-1);
+}
+.notice-content p {
+    margin: 1rem 0;
+    color: var(--text-2);
+}
+.notice-content .primary-btn {
+    margin: 1rem 0;
+}
+
+/* API Status */
+.api-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    background: var(--surface-2);
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--error);
+    transition: background-color 0.3s ease;
+}
+
+.status-indicator.connected {
+    background: var(--success);
+}
+
+#api-status-text {
+    color: var(--text-2);
+    font-size: 0.9em;
+    white-space: nowrap;
+}
+
+.api-key-notice {
     display: flex;
     align-items: center;
     gap: 1rem;
@@ -643,26 +709,6 @@ input:checked + .slider:before {
 .notice-content p {
     margin: 0;
     margin-bottom: 1rem;
-    color: var(--color-text-secondary);
-}
-
-/* API Status */
-.api-status {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-#api-status-indicator {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background-color: var(--color-error);
-}
-#api-status-indicator.connected {
-    background-color: var(--color-success);
-}
-#api-status-text {
-    font-size: 0.875rem;
     color: var(--color-text-secondary);
 }
 
@@ -974,4 +1020,48 @@ pre.line-numbers {
 
 .external-link:hover {
     border-bottom-style: solid;
+}
+
+/* Toast Notifications */
+.toast-container {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
+}
+
+.toast {
+    background: var(--surface-2);
+    color: var(--text-1);
+    padding: 12px 24px;
+    border-radius: 4px;
+    margin: 8px 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transform: translateX(120%);
+    transition: transform 0.3s ease;
+}
+
+.toast.show {
+    transform: translateX(0);
+}
+
+.toast.error {
+    background: var(--error-bg);
+    color: var(--error);
+    border-left: 4px solid var(--error);
+}
+
+.toast.success {
+    background: var(--success-bg);
+    color: var(--success);
+    border-left: 4px solid var(--success);
+}
+
+.toast.info {
+    background: var(--info-bg);
+    color: var(--info);
+    border-left: 4px solid var(--info);
 }
