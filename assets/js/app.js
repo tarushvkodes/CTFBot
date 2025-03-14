@@ -418,14 +418,14 @@ function toggleTheme() {
 // Update API status indicator and text
 function updateApiStatus(isConnected, message = '') {
     const indicator = document.getElementById('api-status-indicator');
-    const statusText = document.getElementById('api-status-text');
+    const statusContainer = document.getElementById('api-status');
     
     if (indicator) {
         indicator.classList.toggle('connected', isConnected);
     }
     
-    if (statusText) {
-        statusText.textContent = isConnected ? 'Connected' : message || 'Disconnected';
+    if (statusContainer) {
+        statusContainer.title = isConnected ? 'API Connected' : message || 'API Disconnected';
     }
 }
 
