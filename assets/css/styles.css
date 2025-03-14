@@ -63,10 +63,23 @@ body {
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    padding: 0.5rem;
-    max-width: 1200px; /* Match the chat interface max-width */
-    width: 100%;
-    justify-content: center; /* Center the logo and title */
+    padding: 0;  /* Remove padding that could affect centering */
+    max-width: max-content; /* Let the content determine width */
+    width: auto; /* Remove fixed width */
+    justify-content: center;
+    z-index: 1; /* Ensure logo stays above other elements */
+}
+
+.logo-container img {
+    width: 32px; /* Set a fixed size for the logo */
+    height: 32px;
+    object-fit: contain;
+}
+
+.logo-container h1 {
+    margin: 0; /* Remove any default margins */
+    font-size: 1.5rem;
+    white-space: nowrap; /* Prevent title from wrapping */
 }
 
 /* Update header to provide space for absolute positioned logo */
