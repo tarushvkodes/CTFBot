@@ -3,7 +3,8 @@
 
 // Constants and configuration
 const DEFAULT_API_KEY = ""; // No default API key - users must provide their own
-const API_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent"; // Updated to gemini-2.0-flash model
+const API_BASE_URL = "https://generativelanguage.googleapis.com/v1"; // Base URL for Gemini API
+const API_URL = `${API_BASE_URL}/models/gemini-pro:generateContent`; // Using gemini-pro model endpoint
 const MAX_HISTORY_LENGTH = 20; // Maximum number of messages to keep in history
 const MAX_CONVERSATIONS = 50; // Maximum number of conversations to store
 const MESSAGES_PER_PAGE = 50; // Number of messages to load at once
@@ -584,22 +585,26 @@ async function handleSendMessage() {
     }
 }
 
-// Send message to the Gemini API
+// Send message to Gemini API
 async function sendToGemini(prompt) {
     try {
         if (!state.apiKey) {
             throw new Error('API key is required');
         }
 
+        // Add uploaded files context if any
+        const fileContexts = state.uploadedFiles ? state.uploadedFiles.map(file => file.content).join('\n\n') : '';
+        const fullPrompt = fileContexts ? `${prompt}\n\nFile Contents:\n${fileContexts}` : prompt;
+        
         // Construct the full context with chat history and system prompt
-        const fullContext = constructPromptWithContext(prompt);
+        const fullContext = constructPromptWithContext(fullPrompt);
 
         const requestUrl = `${API_URL}?key=${state.apiKey}`;
 
         // Create message container ahead of time
         const messageContainer = addEmptyMessage('assistant');
 
-        console.log('Sending request to API'); // Debug log
+        console.log('Sending request to API');
         const response = await fetch(requestUrl, {
             method: 'POST',
             headers: {
@@ -835,9 +840,14 @@ function updateApiStatus(isConnected, errorMessage = '') {
     if (!elements.apiStatusIndicator || !elements.apiStatusText) return;
 
     elements.apiStatusIndicator.classList.toggle('connected', isConnected);
-    elements.apiStatusText.textContent = isConnected ?
-        'API Status: Connected' :
-        `API Status: ${errorMessage || 'Disconnected'}`;
+    elements.apiStatusText.textContent = isConnected ? 
+        'API Status: Connected' : 
+        `API Status: ${errorMessage || 'Error'}`;
+
+    // Show/hide API key notice based on error type
+    if (!isConnected && errorMessage.toLowerCase().includes('api key')) {
+        elements.apiKeyNotice.style.display = 'flex';
+    }
 
     if (isConnected) {
         toast.show('Successfully connected to Gemini API', 'success');
