@@ -3,8 +3,7 @@
 
 // Constants and configuration
 const DEFAULT_API_KEY = ""; // No default API key - users must provide their own
-const API_BASE_URL = "https://generativelanguage.googleapis.com/v1"; // Base URL for Gemini API
-const API_URL = `${API_BASE_URL}/models/gemini-2.0-flash:generateContent`; // Using gemini-2.0-flash model
+const API_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent"; // Using gemini-2.0-flash model
 const MAX_HISTORY_LENGTH = 20; // Maximum number of messages to keep in history
 const MAX_CONVERSATIONS = 50; // Maximum number of conversations to store
 const MESSAGES_PER_PAGE = 50; // Number of messages to load at once
@@ -403,7 +402,7 @@ async function checkApiKeyStatus() {
 
     try {
         // Make a lightweight request to the API to check auth
-        const response = await fetch(`${API_BASE_URL}/models?key=${state.apiKey}`);
+        const response = await fetch(`${API_URL}/models?key=${state.apiKey}`);
         
         if (!response.ok) {
             const errorData = await response.json();
@@ -436,7 +435,7 @@ async function checkApiKeyStatus() {
 // Fetch available models from the Gemini API
 async function fetchAvailableModels() {
     try {
-        const response = await fetch(`${API_BASE_URL}/models?key=${state.apiKey}`);
+        const response = await fetch(`${API_URL}/models?key=${state.apiKey}`);
         
         const result = await response.json();
         return result.models;
