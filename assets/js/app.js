@@ -4,9 +4,6 @@
 // Constants and configuration
 const DEFAULT_API_KEY = ""; // No default API key - users must provide their own
 const API_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent"; // Using gemini-2.0-flash model
-const MAX_HISTORY_LENGTH = 20; // Maximum number of messages to keep in history
-const MAX_CONVERSATIONS = 50; // Maximum number of conversations to store
-const MESSAGES_PER_PAGE = 50; // Number of messages to load at once
 const DEFAULT_SYSTEM_PROMPT = `You are CTFBot, an expert AI assistant specializing in Capture The Flag (CTF) competitions and cybersecurity challenges. Your purpose is to help users analyze challenges, provide hints without giving away complete solutions unless asked, and explain security concepts.
 Focus on these areas:
 - Challenge analysis: Determine the likely category and potential techniques to solve
@@ -24,12 +21,8 @@ Whenever you're presented with challenge text or files, analyze and suggest poss
 const state = {
     apiKey: localStorage.getItem('ctfbot_api_key') || DEFAULT_API_KEY,
     theme: localStorage.getItem('ctfbot_theme') || 'system',
-    saveHistory: localStorage.getItem('ctfbot_save_history') !== 'false',
     isProcessing: false,
-    chatHistory: [],
-    currentContext: '',
-    historyPage: 0, // Current page of history being displayed
-    totalHistoryPages: 0 // Total number of history pages
+    currentContext: ''
 };
 
 // Define elements object to store references to DOM elements
@@ -42,7 +35,6 @@ const elements = {
     apiKeyNotice: document.getElementById('api-key-notice'),
     settingsModal: document.getElementById('settings-modal'),
     themeButtons: document.querySelectorAll('.theme-btn'),
-    historyToggle: document.getElementById('history-toggle'),
     sendBtn: document.getElementById('send-btn'),
     typingIndicator: document.getElementById('typing-indicator'),
     settingsBtn: document.getElementById('settings-btn'),
@@ -80,17 +72,14 @@ if (elements.saveSettings) {
 // Function to save settings
 function saveSettings() {
     const apiKey = elements.apiKeyInput.value.trim();
-    const saveHistory = elements.historyToggle.checked;
     const theme = document.querySelector('.theme-btn.active').getAttribute('data-theme');
 
     // Save settings to local storage
     localStorage.setItem('ctfbot_api_key', apiKey);
-    localStorage.setItem('ctfbot_save_history', saveHistory);
     localStorage.setItem('ctfbot_theme', theme);
 
     // Update state
     state.apiKey = apiKey;
-    state.saveHistory = saveHistory;
     state.theme = theme;
 
     // Apply theme
@@ -163,16 +152,6 @@ async function sendMessage(message) {
 
         const botResponse = data.candidates[0].content.parts[0].text;
         displayMessage(botResponse, false);
-
-        // Save to history if enabled
-        if (state.saveHistory) {
-            state.chatHistory.push({
-                timestamp: Date.now(),
-                message,
-                response: botResponse
-            });
-            saveChatHistory();
-        }
 
     } catch (error) {
         console.error('Error sending message:', error);
@@ -257,9 +236,6 @@ async function init() {
             elements.apiKeyNotice.style.display = 'flex';
         }
 
-        // Load chat history
-        await loadChatHistory();
-
         // Initial textarea height adjustment
         adjustTextareaHeight();
 
@@ -309,7 +285,6 @@ function openSettingsModal() {
     
     // Clear any previous settings
     elements.apiKeyInput.value = state.apiKey || '';
-    elements.historyToggle.checked = state.saveHistory;
     
     // Update theme buttons
     elements.themeButtons.forEach(btn => {
@@ -435,22 +410,6 @@ function updateApiStatus(isConnected, message = '') {
     
     if (statusText) {
         statusText.textContent = isConnected ? 'Connected' : message || 'Disconnected';
-    }
-}
-
-// Load chat history from localStorage
-async function loadChatHistory() {
-    if (!state.saveHistory) return;
-    
-    try {
-        const savedHistory = localStorage.getItem('ctfbot_chat_history');
-        if (savedHistory) {
-            state.chatHistory = JSON.parse(savedHistory);
-            state.totalHistoryPages = Math.ceil(state.chatHistory.length / MESSAGES_PER_PAGE);
-        }
-    } catch (error) {
-        console.error('Error loading chat history:', error);
-        toast.show('Error loading chat history', 'error');
     }
 }
 
