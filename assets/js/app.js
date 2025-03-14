@@ -169,7 +169,23 @@ function displayMessage(content, isUser = true, isError = false) {
     
     const contentDiv = document.createElement('div');
     contentDiv.className = `message-content ${isError ? 'error' : ''}`;
-    contentDiv.textContent = content;
+    
+    // Format the content using markdown
+    if (!isUser) {
+        // Replace line breaks with proper markdown line breaks
+        content = content.replace(/\n/g, '  \n');
+        
+        // Convert markdown to HTML
+        contentDiv.innerHTML = marked.parse(content, {
+            breaks: true,
+            gfm: true,
+            headerIds: false,
+            mangle: false
+        });
+    } else {
+        // For user messages, just use text content
+        contentDiv.textContent = content;
+    }
     
     messageElement.appendChild(contentDiv);
     
