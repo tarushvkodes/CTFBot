@@ -3,9 +3,7 @@
 
 // Constants and configuration
 const DEFAULT_API_KEY = ""; // No default API key - users must provide their own
-const API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
-const MODEL_NAME = "gemini-2.0-flash"; // Updated to use Gemini 2.0 Flash
-const API_URL = `${API_BASE_URL}/models/${MODEL_NAME}:generateContent?key=`;
+const API_URL = "https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent"; // Updated to gemini-2.0-flash model
 const MAX_HISTORY_LENGTH = 20; // Maximum number of messages to keep in history
 const MAX_CONVERSATIONS = 50; // Maximum number of conversations to store
 const MESSAGES_PER_PAGE = 50; // Number of messages to load at once
@@ -19,6 +17,7 @@ Focus on these areas:
 - Forensics: File analysis, steganography, network traffic analysis, memory forensics
 - OSINT: Open-source intelligence techniques and resources
 - Miscellaneous: Common CTF tricks and tools
+
 Whenever you're presented with challenge text or files, analyze and suggest possible approaches. For code, explain what it does and potential vulnerabilities.`;
 
 // State management
@@ -595,13 +594,12 @@ async function sendToGemini(prompt) {
         // Construct the full context with chat history and system prompt
         const fullContext = constructPromptWithContext(prompt);
 
-        const modelToUse = MODEL_NAME;
-        const requestUrl = `${API_BASE_URL}/models/${modelToUse}:generateContent?key=${state.apiKey}`;
+        const requestUrl = `${API_URL}?key=${state.apiKey}`;
 
         // Create message container ahead of time
         const messageContainer = addEmptyMessage('assistant');
 
-        console.log(`Sending request to API using model ${modelToUse}`); // Debug log
+        console.log('Sending request to API'); // Debug log
         const response = await fetch(requestUrl, {
             method: 'POST',
             headers: {
