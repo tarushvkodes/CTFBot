@@ -33,21 +33,6 @@ const state = {
     totalHistoryPages: 0 // Total number of history pages
 };
 
-// DOM Elements
-const elements = {
-    messageInput: document.getElementById('message-input'),
-    sendBtn: document.getElementById('send-btn'),
-    chatMessages: document.getElementById('chat-messages'),
-    welcomeScreen: document.getElementById('welcome-screen'),
-    typingIndicator: document.getElementById('typing-indicator'),
-    apiKeyInput: document.getElementById('api-key'),
-    apiStatusIndicator: document.getElementById('api-status-indicator'),
-    chatHistorySidebar: document.getElementById('chat-history-sidebar'),
-    chatHistoryList: document.getElementById('chat-history-list'),
-    sidebarOverlay: document.querySelector('.sidebar-overlay'),
-    assistanceType: document.getElementById('assistance-type')
-};
-
 // Hide welcome screen
 function startNewChat() {
     // Clear chat messages
@@ -351,4 +336,32 @@ async function fetchAvailableModels() {
     try {
         const response = await fetch(`${API_BASE_URL}/models?key=${state.apiKey}`);
         
-        if (!response
+        const result = await response.json();
+        return result.models;
+    } catch (error) {
+        console.log('Error fetching models', error);
+        return [];
+    }
+}
+
+// Send a message to the Gemini API and add it to chat
+async function sendMessage(message) {
+    if (!state.apiKey) return;
+
+    // Call the API
+    const response = await fetch(API_URL, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${state.apiKey}`
+        },
+        body: JSON.stringify({ messages: [{ content: message }] }),
+    });
+
+    if (!response.ok) {
+        console.log('API response error');
+    }
+
+    const data = await response.json();
+    const chatbotResponse = data.generations[0].generations[0].text;
+}
