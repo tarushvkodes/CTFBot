@@ -570,3 +570,26 @@ const toast = {
 
 // Initialize the application
 init();
+
+// Function to adjust the height of the textarea
+function adjustTextareaHeight() {
+    if (!elements.messageInput) return;
+    
+    // Reset height to auto to properly calculate new height
+    elements.messageInput.style.height = 'auto';
+    
+    // Calculate the new height (adding a small buffer to prevent scrollbar flicker)
+    const newHeight = Math.min(elements.messageInput.scrollHeight + 2, 200);
+    
+    // Set the new height
+    elements.messageInput.style.height = `${newHeight}px`;
+    
+    // Scroll to bottom if near bottom
+    const container = elements.chatMessages;
+    if (container) {
+        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+        if (isNearBottom) {
+            container.scrollTop = container.scrollHeight;
+        }
+    }
+}
