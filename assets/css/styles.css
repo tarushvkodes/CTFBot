@@ -959,19 +959,7 @@ pre.line-numbers {
 footer {
     margin-top: auto;
     padding: 1rem;
-    text-align: right;
-}
-
-.copyright {
-    color: var(--color-text-secondary);
-    font-size: 0.875rem;
-    margin: 0;
-}
-
-footer {
-    margin-top: auto;
-    padding: 1rem;
-    text-align: right;
+    text-align: center;
 }
 
 .copyright {

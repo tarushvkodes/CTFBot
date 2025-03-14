@@ -54,9 +54,19 @@ if (elements.setupApiKey) {
     });
 }
 
+// Add event listener to settings button
+if (elements.settingsBtn) {
+    elements.settingsBtn.addEventListener('click', openSettingsModal);
+}
+
 // Add event listener to close settings button
 if (elements.closeSettings) {
     elements.closeSettings.addEventListener('click', closeSettingsModal);
+}
+
+// Add event listener to save settings button
+if (elements.saveSettings) {
+    elements.saveSettings.addEventListener('click', saveSettings);
 }
 
 // Function to save settings
@@ -74,14 +84,6 @@ function saveSettings() {
 
     // Apply theme
     applyTheme();
-
-    // Check API status with new key
-    checkApiKeyStatus().then(isValid => {
-        if (isValid) {
-            elements.apiKeyNotice.style.display = 'none';
-            elements.welcomeScreen.style.display = 'block';
-        }
-    });
 
     // Close settings modal
     closeSettingsModal();
@@ -221,14 +223,17 @@ async function init() {
         // Set up all event listeners
         initEventListeners();
 
-        // Check API status only if we have an API key
+        // Check API status
         if (state.apiKey) {
             elements.apiKeyInput.value = state.apiKey;
             const isApiValid = await checkApiKeyStatus();
-            if (isApiValid) {
-                elements.apiKeyNotice.style.display = 'none';
-                elements.welcomeScreen.style.display = 'block';
+            if (!isApiValid) {
+                elements.welcomeScreen.style.display = 'none';
+                elements.apiKeyNotice.style.display = 'flex';
             }
+        } else {
+            elements.welcomeScreen.style.display = 'none';
+            elements.apiKeyNotice.style.display = 'flex';
         }
 
         // Initial textarea height adjustment
@@ -237,6 +242,8 @@ async function init() {
     } catch (error) {
         console.error('Initialization error:', error);
         toast.show('Error initializing application: ' + error.message, 'error');
+        elements.welcomeScreen.style.display = 'none';
+        elements.apiKeyNotice.style.display = 'flex';
     }
 }
 
@@ -285,10 +292,11 @@ function openSettingsModal() {
     });
     
     // Add modal show class
-    elements.settingsModal.classList.add('show');
-    
-    // Focus on API key input
-    elements.apiKeyInput.focus();
+    requestAnimationFrame(() => {
+        elements.settingsModal.classList.add('show');
+        // Focus on API key input
+        elements.apiKeyInput.focus();
+    });
     
     // Prevent background scrolling
     document.body.style.overflow = 'hidden';
@@ -417,7 +425,7 @@ function saveChatHistory() {
     }
 }
 
-// Setup event listeners
+// Setup event listeners for the application
 function setupEventListeners() {
     // Theme button listeners
     document.querySelectorAll('.theme-btn').forEach(btn => {
@@ -428,11 +436,6 @@ function setupEventListeners() {
             applyTheme();
         });
     });
-
-    // Settings button listener
-    if (elements.settingsBtn) {
-        elements.settingsBtn.addEventListener('click', openSettingsModal);
-    }
 
     // Message input auto-resize
     if (elements.messageInput) {
@@ -451,6 +454,12 @@ function setupEventListeners() {
 async function checkApiKeyStatus() {
     if (!state.apiKey) {
         updateApiStatus(false, 'API key required');
+        if (elements.apiKeyNotice) {
+            elements.apiKeyNotice.style.display = 'flex';
+        }
+        if (elements.welcomeScreen) {
+            elements.welcomeScreen.style.display = 'none';
+        }
         return false;
     }
 
@@ -471,19 +480,40 @@ async function checkApiKeyStatus() {
         });
 
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
+            const errorData = await response.json();
             const errorMessage = errorData.error?.message || `Error ${response.status}: ${response.statusText}`;
             updateApiStatus(false, errorMessage);
+            if (elements.apiKeyNotice) {
+                elements.apiKeyNotice.style.display = 'flex';
+            }
+            if (elements.welcomeScreen) {
+                elements.welcomeScreen.style.display = 'none';
+            }
             console.error('API key validation error:', errorMessage);
             return false;
         }
 
         // If we got here, API key is valid
         updateApiStatus(true);
+
+        // Hide the API key notice and show welcome screen
+        if (elements.apiKeyNotice) {
+            elements.apiKeyNotice.style.display = 'none';
+        }
+        if (elements.welcomeScreen) {
+            elements.welcomeScreen.style.display = 'block';
+        }
+
         return true;
 
     } catch (error) {
         updateApiStatus(false, error.message);
+        if (elements.apiKeyNotice) {
+            elements.apiKeyNotice.style.display = 'flex';
+        }
+        if (elements.welcomeScreen) {
+            elements.welcomeScreen.style.display = 'none';
+        }
         console.error('Error checking API key status:', error);
         return false;
     }
