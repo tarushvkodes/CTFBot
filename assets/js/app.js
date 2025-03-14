@@ -495,37 +495,67 @@ function setupEventListeners() {
 async function checkApiKeyStatus() {
     if (!state.apiKey) {
         updateApiStatus(false, 'API key required');
+        if (elements.apiKeyNotice) {
+            elements.apiKeyNotice.style.display = 'flex';
+        }
+        if (elements.welcomeScreen) {
+            elements.welcomeScreen.style.display = 'none';
+        }
         return false;
     }
 
     try {
-        // Make a lightweight request to the API to check auth
-        const response = await fetch(`${API_URL}/models?key=${state.apiKey}`);
+        // Make a minimal API call to validate the key
+        const response = await fetch(`${API_URL}?key=${state.apiKey}`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                contents: [{
+                    parts: [{
+                        text: "test"
+                    }]
+                }]
+            })
+        });
 
         if (!response.ok) {
             const errorData = await response.json();
             const errorMessage = errorData.error?.message || `Error ${response.status}: ${response.statusText}`;
             updateApiStatus(false, errorMessage);
-            console.error('API key validation error:', errorMessage); // Log error
+            if (elements.apiKeyNotice) {
+                elements.apiKeyNotice.style.display = 'flex';
+            }
+            if (elements.welcomeScreen) {
+                elements.welcomeScreen.style.display = 'none';
+            }
+            console.error('API key validation error:', errorMessage);
             return false;
         }
 
         // If we got here, API key is valid
         updateApiStatus(true);
 
-        // Hide the API key notice if it was showing
+        // Hide the API key notice and show welcome screen
         if (elements.apiKeyNotice) {
             elements.apiKeyNotice.style.display = 'none';
         }
-
-        // Fetch available models if API key is valid
-        await fetchAvailableModels();
+        if (elements.welcomeScreen) {
+            elements.welcomeScreen.style.display = 'block';
+        }
 
         return true;
 
     } catch (error) {
         updateApiStatus(false, error.message);
-        console.error('Error checking API key status:', error); // Log error
+        if (elements.apiKeyNotice) {
+            elements.apiKeyNotice.style.display = 'flex';
+        }
+        if (elements.welcomeScreen) {
+            elements.welcomeScreen.style.display = 'none';
+        }
+        console.error('Error checking API key status:', error);
         return false;
     }
 }
